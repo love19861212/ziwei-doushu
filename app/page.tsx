@@ -1,0 +1,526 @@
+'use client';
+import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import StarField from '@/components/StarField';
+import { useTheme } from '@/components/ThemeProvider';
+import AnnouncementModal from '@/components/AnnouncementModal';
+
+// Hook: theme colors
+function useColors(t: 'dark' | 'light') {
+  const d = t === 'dark';
+  return {
+    bg:        d ? '#020810'                       : '#FAFAF9',
+    cardBg:    d ? 'rgba(255,255,255,0.04)'        : 'rgba(255,255,255,0.75)',
+    cardBdr:   d ? 'rgba(255,255,255,0.10)'        : 'rgba(200,160,60,0.20)',
+    gold:      d ? '#d4a843'                        : '#B8922A',
+    goldBdr:   d ? 'rgba(212,168,67,0.30)'         : 'rgba(184,146,42,0.30)',
+    goldText:  d ? 'rgba(212,180,100,0.85)'        : 'rgba(120,80,10,0.75)',
+    whiteHi:   d ? 'rgba(255,255,255,0.93)'        : 'rgba(30,25,15,0.92)',
+    whiteMed:  d ? 'rgba(255,255,255,0.78)'        : 'rgba(50,40,20,0.80)',
+    whiteLo:   d ? 'rgba(255,255,255,0.68)'        : 'rgba(80,65,35,0.70)',
+    whiteFnt:  d ? 'rgba(255,255,255,0.60)'        : 'rgba(100,85,50,0.65)',
+    heroCard:  d ? 'rgba(14,10,5,0.42)'            : 'rgba(245,240,220,0.82)',
+    heroGrad:  d ? 'rgba(8,13,20,0.58)'            : 'rgba(200,185,140,0.30)',
+    heroGrad2: d ? 'rgba(8,13,20,0.40)'            : 'rgba(200,185,140,0.20)',
+    heroGrad3: d ? 'rgba(8,13,20,0.38)'            : 'rgba(200,185,140,0.18)',
+    ctaBg:     d ? 'rgba(212,168,67,0.18)'         : 'rgba(184,146,42,0.15)',
+    ctaText:   d ? '#f0d070'                       : '#8B6914',
+    ctaBdr:    d ? 'rgba(212,168,67,0.40)'         : 'rgba(184,146,42,0.35)',
+    navBg:     d ? '#020810'                       : '#F5F0E5',
+    navBdr:    d ? 'rgba(255,255,255,0.05)'        : 'rgba(180,140,40,0.15)',
+    starCell:  d ? 'rgba(255,255,255,0.04)'       : 'rgba(200,180,100,0.12)',
+    starBdr:   d ? 'rgba(212,168,67,0.22)'          : 'rgba(184,146,42,0.22)',
+    starText:  d ? 'rgba(212,168,67,0.70)'         : 'rgba(139,105,16,0.70)',
+    featBg:    d ? 'rgba(255,255,255,0.04)'        : 'rgba(255,255,255,0.80)',
+    featBdr:   d ? 'rgba(255,255,255,0.08)'        : 'rgba(200,160,60,0.20)',
+    textLo:    d ? 'rgba(255,255,255,0.62)'        : 'rgba(100,90,50,0.65)',
+  };
+}
+
+
+// ─── 主题切换 ────────────────────────────────────────────
+// ─── 主星数据 ────────────────────────────────────────────
+const STARS = [
+  { name: '紫微' }, { name: '天机' }, { name: '太阳' }, { name: '武曲' },
+  { name: '天同' }, { name: '廉贞' }, { name: '天府' }, { name: '太阴' },
+  { name: '贪狼' }, { name: '巨门' }, { name: '天相' }, { name: '天梁' },
+  { name: '七杀' }, { name: '破军' },
+];
+
+// ─── 八卦SVG ─────────────────────────────────────────────
+function BaguaSVG() {
+  return (
+    <div aria-hidden="true" style={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, calc(-50% + 120px))',
+      width: '1100px',
+      height: '1100px',
+      maxWidth: '95vw',
+      maxHeight: '95vw',
+      pointerEvents: 'none',
+      zIndex: 0,
+      opacity: 0.12,
+    }}>
+      <svg viewBox="-280 -280 560 560" width="1100" height="1100">
+        <circle cx="0" cy="0" r="248" fill="none" stroke="#e4c97a" strokeWidth="0.5" strokeDasharray="2 6" />
+        <circle cx="0" cy="0" r="230" fill="none" stroke="#e4c97a" strokeWidth="0.8" />
+        <g>
+          {[
+            { x: 0, y: -175, sym: '☵' },
+            { x: 123.74, y: -123.74, sym: '☶' },
+            { x: 175, y: 0, sym: '☳' },
+            { x: 123.74, y: 123.74, sym: '☴' },
+            { x: 0, y: 175, sym: '☲' },
+            { x: -123.74, y: 123.74, sym: '☷' },
+            { x: -175, y: 0, sym: '☱' },
+            { x: -123.74, y: -123.74, sym: '☰' },
+          ].map((p, i) => (
+            <g key={i} transform={`translate(${p.x}, ${p.y})`}>
+              <circle cx="0" cy="0" r="22" fill="none" stroke="#e4c97a" strokeWidth="0.6" />
+              <text x="0" y="0" textAnchor="middle" dominantBaseline="central" fontSize="28" fill="#e4c97a" style={{ fontFamily: 'serif' }}>{p.sym}</text>
+            </g>
+          ))}
+        </g>
+        <circle cx="0" cy="0" r="125" fill="none" stroke="#e4c97a" strokeWidth="0.5" />
+        <g style={{ animation: 'taijiRotate 60s linear infinite' }}>
+          <circle cx="0" cy="0" r="100" fill="none" stroke="#e4c97a" strokeWidth="1" />
+          <path d="M 0 -100 A 50 50 0 0 1 0 0 A 50 50 0 0 0 0 100 A 100 100 0 0 1 0 -100" fill="#e4c97a" />
+          <circle cx="0" cy="-50" r="8" fill="#000" />
+          <circle cx="0" cy="50" r="8" fill="#e4c97a" />
+          <circle cx="0" cy="-50" r="3" fill="#e4c97a" />
+          <circle cx="0" cy="50" r="3" fill="#000" />
+        </g>
+      </svg>
+      <style>{`
+        @keyframes taijiRotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .taiji-rotate { animation: taijiRotate 60s linear infinite; transform-origin: center; }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── 主页 ─────────────────────────────────────────────────
+export default function HomePage() {
+  const router = useRouter();
+  const { theme } = useTheme();
+  const c = useColors(theme);
+  const heroRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '28%']);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
+
+  return (
+    <div style={{ background: c.bg, transition: 'background 0.35s ease' }} className="overflow-x-hidden">
+      <AnnouncementModal />
+      <StarField />
+
+      {/* 全局光晕 */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(212,168,67,0.07) 0%, transparent 70%)' }} />
+        <div className="absolute top-1/3 left-1/4 w-96 h-96 rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(40,80,160,0.12) 0%, transparent 70%)' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(120,50,180,0.08) 0%, transparent 70%)' }} />
+      </div>
+
+      {/* ── 顶部导航 ── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-8 py-3 sm:py-4 gap-2"
+        style={{ background: c.bg }}>
+        <div className="text-[13px] sm:text-xs tracking-[0.3em] sm:tracking-[0.4em] font-medium transition-colors duration-300 flex-shrink-0"
+          style={{ color: c.gold }}>
+          紫微命盘
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0 flex-wrap justify-end">
+          
+          <a href="/knowledge" className="flex items-center px-2 sm:px-3 py-1.5 rounded-full border flex-shrink-0"
+            style={{ borderColor: c.goldBdr, background: c.featBg, textDecoration: 'none' }}>
+            <span className="text-[13px] font-medium tracking-wide select-none" style={{ color: 'rgba(212,180,100,0.85)' }}>知识库</span>
+          </a>
+          <a href="/famous" className="flex items-center px-2 sm:px-3 py-1.5 rounded-full border flex-shrink-0"
+            style={{ borderColor: c.goldBdr, background: c.featBg, textDecoration: 'none' }}>
+            <span className="text-[13px] font-medium tracking-wide select-none" style={{ color: 'rgba(212,180,100,0.85)' }}>名人命盘</span>
+          </a>
+          <a href="/library" className="flex items-center px-2 sm:px-3 py-1.5 rounded-full border flex-shrink-0"
+            style={{ borderColor: c.goldBdr, background: c.featBg, textDecoration: 'none' }}>
+            <span className="text-[13px] font-medium tracking-wide select-none" style={{ color: 'rgba(212,180,100,0.85)' }}>古籍库</span>
+          </a>
+          <a href="/calendar" className="flex items-center px-2 sm:px-3 py-1.5 rounded-full border flex-shrink-0"
+            style={{ borderColor: c.goldBdr, background: c.featBg, textDecoration: 'none' }}>
+            <span className="text-[13px] font-medium tracking-wide select-none" style={{ color: 'rgba(212,180,100,0.85)' }}>日历</span>
+          </a>
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={() => router.push('/heming')}
+            className="flex items-center px-2.5 sm:px-3 py-1.5 rounded-full border transition-all duration-300 flex-shrink-0"
+            style={{ borderColor: c.goldBdr, background: c.featBg, color: 'rgba(212,180,100,0.85)' }}>
+            <span className="text-[12px] sm:text-[13px] font-medium tracking-wide select-none">合盘</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={() => router.push('/chart')}
+            className="flex items-center px-2.5 sm:px-3 py-1.5 rounded-full border transition-all duration-300 flex-shrink-0"
+            style={{ borderColor: c.goldBdr, background: c.featBg, color: 'rgba(212,180,100,0.85)' }}>
+            <span className="text-[13px] font-medium tracking-wide select-none">立即起盘</span>
+          </motion.button>
+        </div>
+      </nav>
+
+      {/* ══ HERO ══════════════════════════════════════════ */}
+      <section ref={heroRef} className="relative min-h-[70vh] md:min-h-[86vh] flex flex-col items-center justify-center px-6 z-10 pb-14 pt-20 overflow-hidden">
+        {/* Hero背景图 */}
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'url(/images/scenes/hero-clean.jpg)',
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            opacity: 0.96, transition: 'opacity 0.6s ease'
+          }} />
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(180deg, rgba(8,13,20,0.58) 0%, rgba(8,13,20,0.40) 26%, rgba(8,13,20,0.38) 60%, rgba(8,13,20,0.30) 82%, c.bg 100%)'
+          }} />
+        </div>
+
+        {/* 八卦SVG */}
+        <BaguaSVG />
+
+        {/* 主内容 */}
+        <motion.div className="text-center w-full mx-auto mt-2 md:mt-4" style={{ y: heroY, opacity: heroOpacity, maxWidth: "960px", position: "relative", zIndex: 1 }}>
+          <div style={{
+            display: 'inline-block', padding: '30px clamp(22px,5vw,52px)',
+            borderRadius: '22px', background: c.heroCard,
+            backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            maxWidth: '780px', marginLeft: 'auto', marginRight: 'auto', marginBottom: '30px'
+          }}>
+            <div className="flex items-center justify-center gap-3 mb-5">
+              <div className="h-px w-12" style={{ background: 'linear-gradient(to right, transparent, rgba(212,168,67,0.4))' }} />
+              <span className="text-[13px] tracking-[0.45em] transition-colors duration-300"
+                style={{ color: c.goldText, textShadow: '0 1px 8px rgba(0,0,0,0.55)' }}>
+                中华传统文化 · 古籍研读
+              </span>
+              <div className="h-px w-12" style={{ background: 'linear-gradient(to left, transparent, rgba(212,168,67,0.4))' }} />
+            </div>
+
+            <h1 className="grad-text grad-text-dark font-bold leading-none mb-4"
+              style={{ fontSize: 'clamp(36px, 5.2vw, 64px)', letterSpacing: '0.08em', fontFamily: 'serif', filter: 'drop-shadow(0 2px 14px rgba(0,0,0,0.6))' }}>
+              中华传统文化典籍
+            </h1>
+
+            <div className="max-w-2xl mx-auto mb-7" style={{ color: c.whiteHi, lineHeight: '1.85', textShadow: '0 1px 10px rgba(0,0,0,0.5)' }}>
+              <p className="text-[16px] md:text-[19px] tracking-[0.04em]" style={{ fontFamily: 'serif' }}>
+                收录与整理中华传统典籍原文，及星曜、宫位等传统知识体系的研读与考据。
+              </p>
+              <p className="text-[12px] mt-3 tracking-[0.05em]" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                仅供传统文化学习参考 · 不构成医疗 / 投资 / 婚姻 / 法律建议
+              </p>
+            </div>
+          </div>
+
+          {/* 天/地/人三卡片 */}
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4 max-w-[600px] mx-auto mb-7">
+            {[
+              { href: '/tianji', icon: '⊙', label: '天纪', sub: '上知天文', color: c.gold },
+              { href: '/diji', icon: '⊞', label: '地纪', sub: '下知地理', color: '#6b8a5e' },
+              { href: '/renji', icon: '⊕', label: '人纪', sub: '中知人事', color: '#8b6b9e' },
+            ].map((item) => (
+              <a key={item.href} href={item.href}
+                className="flex flex-col items-center justify-center py-4 sm:py-5 px-3 rounded-2xl transition-all duration-300"
+                style={{
+                  background: c.cardBg, border: `1px solid ${item.color}80`,
+                  textDecoration: 'none', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                  boxShadow: '0 4px 18px rgba(0,0,0,0.3)',
+                }}>
+                <span style={{ fontSize: 'clamp(20px, 3vw, 26px)', color: item.color, opacity: 0.9, marginBottom: '6px', lineHeight: 1 }}>{item.icon}</span>
+                <span style={{ fontSize: 'clamp(15px, 1.4vw, 17px)', fontWeight: 600, letterSpacing: '0.12em', color: '#ffffff', marginBottom: '2px', textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>{item.label}</span>
+                <span style={{ fontSize: 'clamp(10px, 0.95vw, 11px)', letterSpacing: '0.2em', color: c.whiteMed, textShadow: '0 1px 6px rgba(0,0,0,0.45)' }}>{item.sub}</span>
+              </a>
+            ))}
+          </div>
+
+          {/* CTA按钮 */}
+          <div className="flex flex-col items-center gap-4">
+            <motion.button
+              whileHover={{ y: -2, filter: 'brightness(1.06)' }} whileTap={{ scale: 0.97 }}
+              onClick={() => router.push('/chart')}
+              className="px-12 py-4 font-semibold text-base tracking-widest rounded-full"
+              style={{
+                background: c.ctaBg,
+                color: c.ctaText, border: '0.5px solid ' + c.ctaBdr,
+                boxShadow: '0 8px 32px rgba(212,168,67,0.22), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.05), inset 0 0 20px rgba(212,168,67,0.06)',
+              }}>
+              进入典籍研读
+            </motion.button>
+            <a href="/sanji/ziwei" className="text-sm tracking-wide rounded-full"
+              style={{
+                color: 'rgba(255,255,255,0.92)', textDecoration: 'none', textShadow: '0 1px 6px rgba(0,0,0,0.55)',
+                padding: '10px 22px', border: '1px solid rgba(255,255,255,0.4)',
+                background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+              }}>
+              📖 传统文化知识体系入门 · 从这里开始 →
+            </a>
+            <a href="/tianji" className="text-xs tracking-widest"
+              style={{ color: c.textLo, textDecoration: 'none', textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>
+              或浏览传统文化典籍体系 →
+            </a>
+          </div>
+
+          {/* 十四主星 */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 0.8 }}
+            className="mt-12 grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-w-[540px] mx-auto opacity-0">
+            {STARS.map((star, i) => (
+              <motion.div key={star.name}
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 1.5 + i * 0.03, duration: 0.35 }}
+                className="flex items-center justify-center px-2 py-1 rounded-full"
+                style={{ background: c.starCell, border: '1px solid rgba(212,168,67,0.22)' }}>
+                <span className="text-[13px] tracking-wide" style={{ color: c.starText }}>{star.name}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* 滚动提示 */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-2 pointer-events-none">
+          <span className="text-[13px] tracking-[0.4em] uppercase" style={{ color: c.whiteLo }}>探索更多</span>
+          <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+            className="w-px h-8" style={{ background: 'linear-gradient(to bottom, rgba(212,168,67,0.55), transparent)' }} />
+        </motion.div>
+      </section>
+
+      {/* ══ 哲学引言 ══════════════════════════════════════ */}
+      <section className="philosophy-section relative z-10 overflow-hidden flex items-center"
+        style={{ padding: '56px 24px', minHeight: '50svh' }}>
+        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)', opacity: 0.18 }} />
+        <div className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, #020810 0%, #020810 12%, #061020 32%, #0d0820 50%, #061020 68%, #020810 88%, #020810 100%)',
+            transition: 'background 0.4s ease'
+          }} />
+        <div className="relative mx-auto text-center w-full" style={{ opacity: 0.35, transform: 'translateY(20px) scale(0.985)' }}>
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="h-px w-16" style={{ background: 'linear-gradient(to right, transparent, rgba(232,200,120,0.55))' }} />
+            <span className="text-[12px] tracking-[0.55em] uppercase" style={{ color: 'rgba(232,200,120,0.65)' }}>命 · 运 · 观</span>
+            <div className="h-px w-16" style={{ background: 'linear-gradient(to left, transparent, rgba(232,200,120,0.55))' }} />
+          </div>
+          <div className="space-y-3" style={{ maxWidth: '840px', margin: '0 auto' }}>
+            <p className="tracking-wider" style={{ fontSize: 'clamp(17px, 2.2vw, 28px)', color: 'rgba(215,228,252,0.78)', fontWeight: 400, fontFamily: 'serif', letterSpacing: '0.06em' }}>提前窥探命运的意义</p>
+            <p className="tracking-wider" style={{ fontSize: 'clamp(21px, 2.6vw, 32px)', color: 'rgba(220,232,250,0.85)', fontWeight: 400, fontFamily: 'serif', letterSpacing: '0.06em' }}>不在于预知未来</p>
+            <p className="tracking-wider" style={{ fontSize: 'clamp(24px, 3vw, 40px)', color: 'rgba(225,235,250,0.92)', fontWeight: 400, fontFamily: 'serif', letterSpacing: '0.06em' }}>而在于不断认识自己</p>
+            <p className="grad-text grad-text-dark font-bold"
+              style={{ fontSize: 'clamp(24px, 3.4vw, 48px)', letterSpacing: '0.08em', lineHeight: 1.35, fontFamily: 'serif' }}>
+              最终书写属于自己的人生剧本
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ 天·地·人 三卡片 ═══════════════════════════════ */}
+      <section className="relative z-10 flex items-center px-6 md:px-10 lg:px-14 py-16">
+        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)', opacity: 0.18 }} />
+        <div className="mx-auto w-full" style={{ maxWidth: '1280px', opacity: 1, transform: 'none' }}>
+          <div className="text-center mb-10" style={{ opacity: 1, transform: 'translateY(0) scale(1)' }}>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="h-px w-12" style={{ background: 'linear-gradient(to right, transparent, rgba(212,168,67,0.4))' }} />
+              <span className="text-[12px] tracking-[0.5em] uppercase" style={{ color: 'rgba(212,168,67,0.6)' }}>Ni Haixia · Philosophy</span>
+              <div className="h-px w-12" style={{ background: 'linear-gradient(to left, transparent, rgba(212,168,67,0.4))' }} />
+            </div>
+            <h2 className="grad-text grad-text-dark font-bold mb-5 tracking-tight"
+              style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>天 · 地 · 人</h2>
+            <p className="max-w-2xl mx-auto text-sm leading-relaxed" style={{ color: '#b8c6df' }}>
+              倪海夏老师的核心命运观：命运从来不是人生的全部。<br />
+              他将影响人生的力量分为三个同等重要的维度。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+            {[
+              {
+                img: '/images/scenes/tian-card.jpg', char: '天', fraction: '⅓', ofLife: 'of life',
+                title: '先天命运', sub: '命盘 · 星曜 · 五行', color: c.gold,
+                desc: '紫微斗数所揭示的，是一个人的先天命盘格局——出生时间决定的星曜布局、五行局数、命宫主星。这只是命运的三分之一，是人生的底色，而非全貌。'
+              },
+              {
+                img: '/images/scenes/di-card.jpg', char: '地', fraction: '⅓', ofLife: 'of life',
+                title: '地理环境', sub: '地域 · 风水 · 环境', color: 'rgba(96,165,250,0.9)',
+                desc: '你所在的地理环境、城市、国家、风水格局，乃至家庭背景与社会结构，共同构成了命运的第二个维度。同一命盘，生在不同地方，际遇可以天壤之别。'
+              },
+              {
+                img: '/images/scenes/ren-card.jpg', char: '人', fraction: '⅓', ofLife: 'of life',
+                title: '人心意念', sub: '意志 · 选择 · 行动', color: 'rgba(100,216,139,0.9)',
+                desc: '个人的意志、心态、选择与行动，才是改变命运最主动的力量。倪师强调：了解命盘是为了更好地做人，而不是坐等命运安排。精进自己，是最强的破局之道。'
+              },
+            ].map((card, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ scale: 1.03, y: -4 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="rounded-2xl h-full flex flex-col overflow-hidden cursor-pointer"
+                style={{
+                  background: c.starCell,
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  boxShadow: '0 4px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+                }}
+              >
+                <div style={{ position: 'relative', aspectRatio: '3 / 2', backgroundImage: `url(${card.img})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0) 38%, rgba(0,0,0,0) 68%, rgba(0,0,0,0.24) 100%)' }} />
+                  <div style={{ position: 'absolute', top: '16px', left: '18px', fontSize: 'clamp(28px,3vw,38px)', fontWeight: 700, lineHeight: 1, color: '#fff', textShadow: '0 2px 12px rgba(0,0,0,0.5)', fontFamily: 'serif' }}>{card.char}</div>
+                  <div style={{ position: 'absolute', top: '18px', right: '20px', textAlign: 'right', color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.55)' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1 }}>{card.fraction}</div>
+                    <div style={{ fontSize: '10px', letterSpacing: '0.18em', opacity: 0.85, marginTop: '3px' }}>{card.ofLife}</div>
+                  </div>
+                </div>
+                <div className="flex flex-col flex-1" style={{ padding: '24px 26px 26px' }}>
+                  <div className="mb-3">
+                    <div className="text-sm font-semibold mb-1" style={{ color: card.color }}>{card.title}</div>
+                    <div className="text-[12px] tracking-wider" style={{ color: '#9db0d0' }}>{card.sub}</div>
+                  </div>
+                  <div className="h-px mb-4" style={{ background: card.color, opacity: 0.4 }} />
+                  <p className="text-[13px] leading-relaxed flex-1" style={{ color: '#b8c6df' }}>{card.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-10 text-center" style={{ opacity: 1, transform: 'translateY(0) scale(1)' }}>
+            <p className="text-sm leading-relaxed" style={{ color: '#b8c6df' }}>「命运不是人生的全部，加上地理位置和人念，才是。」</p>
+            <p className="mt-2 text-[12px] tracking-widest" style={{ color: 'rgba(212,168,67,0.6)' }}>— 倪海夏</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ 倪海夏老师专版 ═════════════════════════════════ */}
+      <section style={{ position: 'relative', padding: 'clamp(56px, 8vw, 96px) 24px clamp(40px, 6vw, 64px)', textAlign: 'center' }}>
+        <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '18px' }}>
+            <span style={{ height: '1px', width: '40px', background: 'linear-gradient(to right, transparent, #8b6410)', opacity: 0.5 }} />
+            <span style={{ fontSize: '12px', letterSpacing: '0.34em', color: '#8b6410', fontWeight: 600 }}>ORACLE · 师承</span>
+            <span style={{ height: '1px', width: '40px', background: 'linear-gradient(to left, transparent, #8b6410)', opacity: 0.5 }} />
+          </div>
+          <h2 style={{ fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 700, lineHeight: 1.3, letterSpacing: '0.04em', color: '#1a1d24', fontFamily: 'serif', margin: 0 }}>倪海夏先生 · 把天机讲成人话</h2>
+          <p style={{ marginTop: '16px', fontSize: '15px', lineHeight: 1.7, letterSpacing: '0.02em', color: '#5a6275' }}>不玄、不吓人，只讲能用的方法论</p>
+        </div>
+      </section>
+
+      <section className="relative z-10 flex items-center px-6 md:px-10 lg:px-14 py-16">
+        <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)', opacity: 0.18 }} />
+        <div className="mx-auto w-full" style={{ maxWidth: '1280px', opacity: 1, transform: 'none' }}>
+          <div className="text-center mb-10" style={{ opacity: 1, transform: 'translateY(0) scale(1)' }}>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="h-px w-12" style={{ background: 'linear-gradient(to right, transparent, rgba(212,168,67,0.4))' }} />
+              <span className="text-[12px] tracking-[0.5em] uppercase" style={{ color: 'rgba(212,168,67,0.6)' }}>Master · 1954 – 2012</span>
+              <div className="h-px w-12" style={{ background: 'linear-gradient(to left, transparent, rgba(212,168,67,0.4))' }} />
+            </div>
+            <h2 className="grad-text grad-text-dark font-bold mb-6 tracking-tight"
+              style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>倪海夏老师</h2>
+            <p className="max-w-2xl mx-auto leading-relaxed text-sm" style={{ color: '#b8c6df' }}>
+              当代华人圈最具影响力的中医与术数大家之一<br />
+              美国汉唐中医学院创办人 ·「人纪」「天纪」两大教学体系传世
+            </p>
+          </div>
+
+          <div className="rounded-2xl p-8 md:p-10 mb-8" style={{ opacity: 0.35, transform: 'translateY(10px) scale(0.985)', border: '0.5px solid rgba(212,168,67,0.2)', background: 'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)', boxShadow: '0 8px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(255,255,255,0.02)' }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {[
+                { label: '生于', value: '1954年', sub: '台湾' },
+                { label: '离世', value: '2012年', sub: '1月31日 · 享年58' },
+                { label: '传承', value: '紫微斗数', sub: '经方中医 · 易经' },
+              ].map((item, i) => (
+                <div key={i} className="text-center rounded-xl px-4 py-3"
+                  style={{ border: '1px solid ' + c.featBdr, background: 'rgba(255,255,255,0.02)' }}>
+                  <div className="text-[12px] tracking-[0.3em] mb-1" style={{ color: 'rgba(240,246,255,0.56)' }}>{item.label}</div>
+                  <div className="text-2xl font-semibold mb-0.5" style={{ color: c.gold }}>{item.value}</div>
+                  <div className="text-[13px]" style={{ color: '#9db0d0' }}>{item.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="h-px mb-8" style={{ background: 'rgba(255,255,255,0.08)' }} />
+
+            <div className="space-y-4 text-sm leading-relaxed max-w-3xl mx-auto" style={{ color: '#b8c6df' }}>
+              <p><strong style={{ color: c.gold }}>生平履历</strong>：倪海夏先生（1954–2012）出生于台湾，早年师承多位中医名家，专研经方派（《伤寒论》传承）。中年赴美行医，在美国创立<strong>汉唐中医学院</strong>，二十余年间系统传授中医与传统术数。2012年1月31日因肝癌在台湾离世，享年58岁。</p>
+              <p><strong style={{ color: c.gold }}>教学体系</strong>：倪师将毕生所学整理为两大公开教学系列。<strong>「人纪」</strong>涵盖《针灸大成》《神农本草经》《黄帝内经》《伤寒论》《金匮要略》——这是「人之纪」，奠定中医学习的完整路径；<strong>「天纪」</strong>涵盖紫微斗数与《易经》——这是「天之纪」，是术数研究的体系化成果。两者相合，是倪师留给后世最完整的传承。</p>
+              <p><strong style={{ color: c.gold }}>紫微立场</strong>：倪师在紫微斗数上明确属<strong>南派三合派</strong>，主张「以命宫为本、以三方四正为用、以四化为纲」。他在《天纪》课程中明言：「<em>飞星（四化）飞来飞去太复杂，不搞这个，毕竟大道至简</em>」——这一立场将其与繁琐的飞星派清晰区分。</p>
+              <p><strong style={{ color: c.gold }}>治学态度</strong>：倪师反对死记硬背口诀，强调「理解原理胜过背诵」「逻辑可复核胜过神秘玄学」。这种态度让紫微斗数从师徒密传的封闭体系，走向系统化、可验证、可学习的现代知识体系。</p>
+              <p><strong style={{ color: c.gold }}>当代影响</strong>：倪师的讲课视频在B站、YouTube与各大平台广泛流传，是新一代传统文化与中医爱好者公认的入门必修。他不仅是这一体系的传承者，更是把传统术数与中医带入现代知识体系的关键人物之一。</p>
+              <p style={{ fontSize: '11px', color: '#9db0d0', fontStyle: 'italic', marginTop: '12px' }}>本平台所有解读基于倪师《天纪》公开教学讲义、《紫微斗数全书》明版、传统三合派古籍整理而成，仅作文化与个人成长参考。倪师本人与本平台无任何商业关联。</p>
+            </div>
+          </div>
+
+          {/* 四个要点卡片 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { n: '1', title: '命宫为本，三方为用', desc: '倪师始终强调，看命必先看命宫。命宫主星决定一个人的基本格局与天生性格，三方（财帛、官禄、迁移）则决定此人的「用武之地」。四宫联动才是完整的人生图景。' },
+              { n: '2', title: '对宫借星，不可忽视', desc: '倪师的独到之处在于重视「对宫」。任何宫位若为空宫，必须借对宫星曜来论断，命宫的对面是迁移宫，两者互相影响，这是很多初学者容易忽略的关键。' },
+              { n: '3', title: '四化才是命运的手', desc: '星曜只是基础，四化（化禄、化权、化科、化忌）才是决定运势好坏的关键。同一颗星，有化禄与有化忌，人生轨迹可以截然不同。倪师反复强调：不看四化，命盘只解了一半。' },
+              { n: '4', title: '大限十年，运势有节', desc: '倪师将人生划分为12个大限，每个大限10年。他认为人在不同的大限宫位，际遇完全不同。了解自己现在走的是哪个大限、该宫位有何星曜，才能真正把握当下的运势。' },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ scale: 1.025, y: -3 }}
+                transition={{ duration: 0.2 }}
+                className="rounded-xl p-5 h-full"
+                style={{
+                  border: '1px solid rgba(212,168,67,0.22)',
+                  background: 'rgba(212,168,67,0.05)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)',
+                }}
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5"
+                    style={{ background: 'rgba(212,168,67,0.18)', border: '1px solid rgba(212,168,67,0.45)' }}>
+                    <span className="text-[13px]" style={{ color: c.gold, fontWeight: 700 }}>{item.n}</span>
+                  </div>
+                  <h3 className="text-sm font-semibold leading-relaxed" style={{ color: c.gold, letterSpacing: '0.03em' }}>{item.title}</h3>
+                </div>
+                <p className="text-[13px] leading-relaxed pl-9" style={{ color: 'rgba(184,198,223,0.88)' }}>{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ Footer ════════════════════════════════════════ */}
+      <footer className="relative z-10 py-10 px-6" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="max-w-4xl mx-auto mb-8">
+          <div className="text-[13px] tracking-[0.3em] text-center mb-4 uppercase" style={{ color: '#9db0d0', opacity: 0.85 }}>倪师方法论 · 学术体系</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {[
+              { href: '/chart', label: '紫微', status: '✓ 已上线' },
+              { href: '/tianji', label: '天纪', status: '✓ 已上线' },
+              { href: '/diji', label: '地纪', status: '✓ 已上线' },
+              { href: '/renji', label: '人纪', status: '✓ 已上线' },
+            ].map((item, i) => (
+              <a key={i} href={item.href}
+                className="rounded-lg px-3 py-3 text-center transition-all"
+                style={{ background: c.starCell, border: '1px solid rgba(212,168,67,0.4)', cursor: 'pointer', textDecoration: 'none' }}>
+                <div className="text-base font-semibold mb-0.5 tracking-[0.1em]" style={{ color: c.gold }}>{item.label}</div>
+                <div className="text-[13px] tracking-wider" style={{ color: '#10b981' }}>{item.status}</div>
+              </a>
+            ))}
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-[12px] tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>紫微命盘 · 基于倪海夏正宗体系 · 仅供参考，命运掌握在自己手中</p>
+          <p className="text-[12px] tracking-wider mb-3 max-w-2xl mx-auto leading-relaxed" style={{ color: 'rgba(255,255,255,0.7)', opacity: 0.85 }}>
+            本平台基于中国传统文化研究，仅提供学习参考。<br className="sm:hidden" />不构成任何医疗、投资、法律或重大决策建议。
+          </p>
+          <p className="text-[12px] tracking-wider" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <a href="/terms" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>服务条款</a> · <a href="/privacy" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>隐私政策</a> · <a href="/changelog" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}>更新日志</a>
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
