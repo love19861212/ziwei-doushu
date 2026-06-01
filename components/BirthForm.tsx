@@ -397,9 +397,18 @@ day: !form.day ? '请选择日期'
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              style={{ fontSize: '10px', color: isDark ? 'rgba(165,185,210,0.7)' : 'rgba(140,100,20,0.45)', marginTop: '5px' }}
+              style={{
+                fontSize: '12px',
+                color: isDark ? '#f0b750' : '#8b5a1a',
+                background: isDark ? 'rgba(212,168,67,0.10)' : 'rgba(255,235,200,0.55)',
+                border: isDark ? '1px solid rgba(212,168,67,0.35)' : '1px solid rgba(180,120,30,0.35)',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                marginTop: '8px',
+                lineHeight: 1.55
+              }}
             >
-              * 倪海夏批命用真太阳时，建议填写出生地以自动校正时辰
+              ⚠ <strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>强烈建议填写出生地</strong>：紫微斗数严格按真太阳时排盘，未填写时按北京时间，<strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>重庆/成都/新疆等远离东经 120° 的地方，时辰可能差一格，整张盘都会不一样</strong>。
             </motion.p>
           )}
         </AnimatePresence>
