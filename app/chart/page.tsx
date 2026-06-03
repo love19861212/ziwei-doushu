@@ -10,6 +10,7 @@ import FamousPersonCard from '@/components/FamousPersonCard';
 import ShareModal from '@/components/ShareModal';
 import StarDetailPanel from '@/components/StarDetailPanel';
 import BrightnessSchoolSelector from '@/components/BrightnessSchoolSelector';
+import DaXianPanel from '@/components/DaXianPanel';
 import type { BrightnessSchool } from '@/lib/ziwei/brightness-schools';
 import { FAMOUS_PERSONS } from '@/lib/ziwei/famous';
 type FocusState = { type: string; label: string; star?: any; palace?: any; siHua?: string };
@@ -351,6 +352,7 @@ export default function ChartPage() {
                 return famous ? <FamousPersonCard person={famous} /> : null;
               })()}
               <PatternsCard chart={chart} />
+              <DaXianPanel chart={chart} currentIndex={chart.currentDaXianIndex || 0} />
               <InsightPanel
                 chart={chart}
                 selectedPalace={focus?.palace}
