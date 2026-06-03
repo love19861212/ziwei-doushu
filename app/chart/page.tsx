@@ -13,6 +13,8 @@ import StarDetailPanel from '@/components/StarDetailPanel';
 import BrightnessSchoolSelector from '@/components/BrightnessSchoolSelector';
 import DaXianPanel from '@/components/DaXianPanel';
 import type { BrightnessSchool } from '@/lib/ziwei/brightness-schools';
+import type { SchoolConfig } from '@/lib/ziwei/school-config';
+import { DEFAULT_SCHOOL_CONFIG } from '@/lib/ziwei/school-config';
 import { FAMOUS_PERSONS } from '@/lib/ziwei/famous';
 type FocusState = { type: string; label: string; star?: any; palace?: any; siHua?: string };
 import type { BirthInfo, ZiweiChart, Star, Palace } from '@/lib/ziwei/types';
@@ -33,9 +35,9 @@ export default function ChartPage() {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   // 同步点击星耀弹出的"深入提问AI"到InsightPanel
   const [aiPromptSeed, setAiPromptSeed] = useState<string | null>(null);
-  // 主星亮度表派系 (default/QS/XD1/ZZ/XD2)
-  const [brightnessSchool, setBrightnessSchool] = useState<BrightnessSchool>('default');
-  const [brightnessOpen, setBrightnessOpen] = useState(false);
+  // 10 类排盘开关配置 (Oracle 站 ✦ 面板)
+  const [schoolConfig, setSchoolConfig] = useState<SchoolConfig>(DEFAULT_SCHOOL_CONFIG);
+  const [schoolOpen, setSchoolOpen] = useState(false);
 
   // ── 时间视图状态 ──────────────────────────────────────────
   const [view, setView] = useState<TimeView>('mingpan');
@@ -417,7 +419,7 @@ export default function ChartPage() {
       {chart && (
         <>
           <button
-            onClick={() => setBrightnessOpen(true)}
+            onClick={() => setSchoolOpen(true)}
             style={{
               position: 'fixed',
               right: '16px',
@@ -441,10 +443,10 @@ export default function ChartPage() {
             ✦
           </button>
           <BrightnessSchoolSelector
-            open={brightnessOpen}
-            onClose={() => setBrightnessOpen(false)}
-            currentSchool={brightnessSchool}
-            onSchoolChange={setBrightnessSchool}
+            open={schoolOpen}
+            onClose={() => setSchoolOpen(false)}
+            config={schoolConfig}
+            onConfigChange={setSchoolConfig}
           />
         </>
       )}

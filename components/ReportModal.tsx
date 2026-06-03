@@ -127,6 +127,71 @@ export default function ReportModal({ open, onClose, chart }: ReportModalProps) 
     setTimeout(() => w.print(), 300);
   };
 
+  // 真 PDF 导出 (用 jspdf)
+  const handleExportPDF = async () => {
+    if (!success) return;
+    // 动态加载 jspdf (CDN)
+    if (!(window as any).jspdf) {
+      await new Promise<void>((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = '/lib/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('jspdf 加载失败'));
+        document.head.appendChild(s);
+      });
+    }
+    const { jsPDF } = (window as any).jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+    // 中文字体: jsPDF 默认不支持中文, 需嵌入或使用 html2canvas 路径
+    // 简化版: 用 html2canvas + jsPDF.html() 或单页文本块
+    // 这里采用最稳定方案: 走 html2canvas 截图每页
+
+    // 创建临时 DOM 渲染报告 (隐藏)
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-99999px';
+    container.style.top = '0';
+    container.style.width = '595pt';  // A4 宽度
+    container.style.padding = '40pt';
+    container.style.fontFamily = '-apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+    container.style.fontSize = '11pt';
+    container.style.lineHeight = '1.8';
+    container.style.color = '#1A1A18';
+    container.style.background = 'white';
+    container.innerHTML = success.report.split('\n').map(line => {
+      if (line.startsWith('# ')) return `<h1 style="color:#B8922A;border-bottom:2px solid #B8922A;padding-bottom:6pt;font-size:18pt;margin:0 0 16pt;">${line.slice(2)}</h1>`;
+      if (line.startsWith('## ')) return `<h2 style="color:#B8922A;margin:24pt 0 8pt;font-size:14pt;">${line.slice(3)}</h2>`;
+      if (line.startsWith('### ')) return `<h3 style="color:#555;margin:16pt 0 4pt;font-size:12pt;">${line.slice(4)}</h3>`;
+      if (line.startsWith('---')) return '<hr style="border:none;border-top:1px solid #ccc;margin:24pt 0;" />';
+      if (line.startsWith('- ')) return `<div style="padding-left:16pt;">• ${line.slice(2).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>`;
+      if (line.trim() === '') return '<div style="height:8pt;"></div>';
+      return `<p style="margin:6pt 0;">${line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</p>`;
+    }).join('');
+    document.body.appendChild(container);
+
+    // 截图
+    const canvas = await (window as any).html2canvas(container, { scale: 2, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const imgWidth = 595;  // A4 宽度 pt
+    const pageHeight = 842; // A4 高度 pt
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      doc.addPage();
+      doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    document.body.removeChild(container);
+    doc.save(`紫微全盘报告_${chart.birthInfo?.name || 'unknown'}_${new Date().toISOString().slice(0,10)}.pdf`);
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -329,6 +394,20 @@ export default function ReportModal({ open, onClose, chart }: ReportModalProps) 
                       ⬇️ 下载 Markdown
                     </button>
                     <button
+                      onClick={handleExportPDF}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'transparent',
+                        color: 'var(--tx-1)',
+                        border: '1px solid var(--bdr-med)',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      📑 下载 PDF
+                    </button>
+                    <button
                       onClick={handlePrint}
                       style={{
                         padding: '6px 12px',
@@ -340,7 +419,7 @@ export default function ReportModal({ open, onClose, chart }: ReportModalProps) 
                         cursor: 'pointer',
                       }}
                     >
-                      🖨️ 打印/PDF
+                      🖨️ 打印
                     </button>
                     {simulatedPro && (
                       <span style={{
