@@ -135,6 +135,22 @@ export default function ChartPage() {
     setFocus({ type: 'star', label: `${star.name} · ${palace.name}`, star, palace });
   };
 
+  // 宫名 → 解读主题 映射 (给 AI 明确主题定位, 避免被理解为整盘解读)
+  const PALACE_FOCUS: Record<string, string> = {
+    '命宫': '命主本人的性格特质、天赋本质、人生主轴',
+    '兄弟': '兄弟姐妹关系、同辈交往、竞争合作关系',
+    '夫妻': '配偶特征、婚姻状况、感情发展',
+    '子女': '子女缘分、生育情况、与下一代的互动',
+    '财帛': '财运、理财能力、收入来源、消费习惯',
+    '疾厄': '健康状况、体质强弱、可能的疾病',
+    '迁移': '外出运势、出差移居、社交应酬、外在发展',
+    '奴仆': '朋友交际、部下与同事关系、人际资源',
+    '官禄': '事业运势、工作发展、社会地位、职场关系',
+    '田宅': '不动产、居住环境、家族产业、家庭基础',
+    '福德': '精神世界、内心状态、情趣修养、祸福根源',
+    '父母': '与父母关系、父亲母亲的特征与缘分',
+  };
+
   const handlePalaceClick = (palace: Palace) => {
     setFocus({ type: 'palace', label: palace.name, palace });
     // 仿 Oracle 站: 点宫位 → 右侧 AI 自动跳到该宫位解读
@@ -147,9 +163,28 @@ export default function ChartPage() {
       .map(s => s.name)
       .join('、');
     const starsInfo = majorStars
-      ? `主星：${majorStars}。辅星：${minorStars || '无'}。`
-      : `为空宫，借对宫星曜。` ;
-    const prompt = `请深度解读【${palace.name}】的命理含义。${starsInfo}\n参考倪海夏《天纪》体系与古籍《紫微斗数全书》《骨髓赋》《全集》。\n请提供：\n1. 一句话定调\n2. 核心论断 (3-5 句)\n3. 命盘依据 (5 条)\n4. 经典出处 (含引用原文)`;
+      ? `本宫主星：${majorStars}。辅星：${minorStars || '无'}。`
+      : `本宫为空宫，参考对宫星曜入庙与否。` ;
+    const focus = PALACE_FOCUS[palace.name] || `${palace.name}的命理含义`;
+    const prompt = `【仅限谈【${palace.name}】，不要谈其他宫位】
+
+你是一位紫微斗数专家。用户询问了 ${palace.name} 宫。请只针对该宫进行专业解读。
+
+本宫信息：
+- 宫位名称：${palace.name}
+- 宫位地支：${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][palace.branch]}宫
+- ${starsInfo}
+
+重点关注：${focus}
+
+输出要求（仅限【${palace.name}】本身，禁止拓展到命盘其他宫位）：
+
+1. 【${palace.name}一句话定调】一句极简的话说明本宫核心含义
+2. 【${palace.name}核心论断】3-5 句话详细说明本宫对命主的影响
+3. 【${palace.name}命盘依据】3-5 条为何如此判断的依据（主星特性 / 庙旺 / 四化等）
+4. 【${palace.name}经典出处】引用《紫微斗数全书》《骨髓赋》或倪海夏《天纪》原话
+
+请使用「你」作为主语与用户对话，参考倪海夏《天纪》体系的表达方式。`;
     // 延迟一点 setFocus 以免和 promptSeed 竞速
     setTimeout(() => {
       setAiPromptSeed(prompt);
