@@ -30,6 +30,8 @@ export default function ChartPage() {
   const [view, setView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState(new Date().getFullYear());
   const [liuyueMonth, setLiuyueMonth] = useState(new Date().getMonth() + 1);
+  const [liuriDay, setLiuriDay] = useState(new Date().getDate());
+  const [liushiHour, setLiushiHour] = useState(0);
 
   // ── 聚焦状态（宫位/星曜/四化）────────────────────────────
   const [focus, setFocus] = useState<FocusState | null>(null);
@@ -279,9 +281,13 @@ export default function ChartPage() {
             view={view}
             liunianYear={liunianYear}
             liuyueMonth={liuyueMonth}
+            liuriDay={liuriDay}
+            liushiHour={liushiHour}
             onViewChange={setView}
             onYearChange={setLiunianYear}
             onMonthChange={setLiuyueMonth}
+            onDayChange={setLiuriDay}
+            onHourChange={setLiushiHour}
             onShare={savedForm ? handleShare : undefined}
             onExport={() => window.print()}
             copied={copied}

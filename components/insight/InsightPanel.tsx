@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart, Palace } from '@/lib/ziwei/types';
 import type { TimeView } from '@/components/chart/TimeNav';
 
@@ -100,6 +101,17 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  // 折叠状态: 跟踪每个 AI message 的展开/收起. 默认全部收起
+  // streaming 中(loading=true 且最后一条是 ai)的 message 强制展开
+  const [expandedAiMsgs, setExpandedAiMsgs] = useState<Set<number>>(new Set());
+  const toggleAiExpand = (i: number) => {
+    setExpandedAiMsgs(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -187,7 +199,89 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
         {chatHistory.map((msg,i) => (
           msg.role==='user'
             ? <div key={i} style={{background:'rgba(184,146,42,0.12)',border:'1px solid rgba(184,146,42,0.2)',borderRadius:12,padding:'8px 12px',fontSize:14,color:'#1A1A18',marginBottom:8,alignSelf:'flex-end',maxWidth:'85%',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{msg.text}</div>
-            : <div key={i} style={{background:'#FFFFFF',border:'1px solid rgba(0,0,0,0.07)',borderRadius:12,padding:'12px',marginBottom:8,alignSelf:'flex-start',maxWidth:'100%'}}>{parseAiText(msg.text)}</div>
+            : (() => {
+              const isLastAi = i === chatHistory.length - 1;
+              const isStreaming = loading && isLastAi;
+              const isExpanded = isStreaming || expandedAiMsgs.has(i);
+              const isLong = msg.text.length > 150;
+              return (
+                <div key={i} style={{
+                  background:'#FFFFFF',
+                  border:'1px solid rgba(184,146,42,0.18)',
+                  borderRadius:12,
+                  padding:'10px 12px',
+                  marginBottom:8,
+                  alignSelf:'flex-start',
+                  maxWidth:'100%',
+                  boxShadow:'0 1px 2px rgba(0,0,0,0.03)',
+                }}>
+                  <div style={{
+                    display:'flex', alignItems:'center', justifyContent:'space-between',
+                    marginBottom: isExpanded ? 8 : 0,
+                    fontSize: 10, color:'#B8922A', letterSpacing:'0.2em', fontWeight: 600,
+                  }}>
+                    <span style={{display:'flex', alignItems:'center', gap:4}}>
+                      <span style={{fontSize:12}}>✦</span>
+                      命理解读
+                      {isStreaming && <span style={{color:'#8A8A82', fontStyle:'italic', fontWeight:400, marginLeft:6}}>解读中...</span>}
+                    </span>
+                    {isLong && !isStreaming && (
+                      <button onClick={() => toggleAiExpand(i)} style={{
+                        padding:'2px 8px', borderRadius:999,
+                        fontSize: 10, fontWeight: 500,
+                        border:'1px solid rgba(0,0,0,0.10)',
+                        background: isExpanded ? 'rgba(184,146,42,0.08)' : 'rgba(0,0,0,0.03)',
+                        color: isExpanded ? '#B8922A' : '#8A8A82',
+                        cursor:'pointer',
+                        display:'inline-flex', alignItems:'center', gap:3,
+                        transition:'all 0.15s',
+                      }}>
+                        {isExpanded ? '收起' : '展开'}
+                        <span style={{
+                          display:'inline-block',
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition:'transform 0.2s',
+                          fontSize: 8,
+                        }}>▾</span>
+                      </button>
+                    )}
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {isExpanded ? (
+                      <motion.div
+                        key="expanded"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {parseAiText(msg.text)}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="collapsed"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        style={{
+                          color:'#8A8A82', fontSize: 12, lineHeight: 1.5,
+                          cursor: isLong ? 'pointer' : 'default',
+                          padding: isLong ? '2px 0' : 0,
+                        }}
+                        onClick={isLong ? () => toggleAiExpand(i) : undefined}
+                      >
+                        {msg.text.slice(0, 80).replace(/\n+/g, ' ').trim()}
+                        {isLong && (
+                          <span style={{color:'#B8922A', marginLeft:4, fontWeight:500}}>… 点击展开</span>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })()
         ))}
         {loading && chatHistory[chatHistory.length-1]?.role==='user' && (
           <div style={{background:'#FFFFFF',border:'1px solid rgba(0,0,0,0.07)',borderRadius:12,padding:'12px',fontSize:14,color:'#8A8A82',fontStyle:'italic',alignSelf:'flex-start'}}>正在解读...</div>
