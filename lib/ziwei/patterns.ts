@@ -34,7 +34,7 @@ export interface Pattern {
 }
 
 // ────────────────── 常量 ──────────────────
-const SHA_NAMES = ['擎羊', '陀罗', '火星', '铃星', '地空', '地劫'];
+export const SHA_NAMES = ['擎羊', '陀罗', '火星', '铃星', '地空', '地劫'];
 const SHA_HARD = ['擎羊', '陀罗', '火星', '铃星'];   // 四煞
 const SHA_KONG = ['地空', '地劫'];                  // 空劫
 const ZUO_YOU = ['左辅', '右弼'];
@@ -45,13 +45,13 @@ const KUI_YUE = ['天魁', '天钺'];
 function getMajorStarNames(palace: Palace): string[] {
   return palace.stars.filter(s => s.type === 'major').map(s => s.name);
 }
-function findStar(palace: Palace, name: string): Star | undefined {
+export function findStar(palace: Palace, name: string): Star | undefined {
   return palace.stars.find(s => s.name === name);
 }
-function hasStar(palace: Palace, name: string): boolean {
+export function hasStar(palace: Palace, name: string): boolean {
   return palace.stars.some(s => s.name === name);
 }
-function findStarPalace(chart: ZiweiChart, name: string): Palace | undefined {
+export function findStarPalace(chart: ZiweiChart, name: string): Palace | undefined {
   return chart.palaces.find(p => p.stars.some(s => s.name === name));
 }
 function getPalaceByBranch(chart: ZiweiChart, branch: number): Palace | undefined {
@@ -60,7 +60,7 @@ function getPalaceByBranch(chart: ZiweiChart, branch: number): Palace | undefine
 function shaCountInPalace(palace: Palace, list: string[] = SHA_HARD): number {
   return palace.stars.filter(s => list.includes(s.name)).length;
 }
-function hasShaInPalace(palace: Palace, list: string[] = SHA_NAMES): boolean {
+export function hasShaInPalace(palace: Palace, list: string[] = SHA_NAMES): boolean {
   return palace.stars.some(s => list.includes(s.name));
 }
 function getSanFangPalaces(chart: ZiweiChart): Palace[] {
@@ -68,7 +68,7 @@ function getSanFangPalaces(chart: ZiweiChart): Palace[] {
   const branches = [m, (m + 4) % 12, (m + 8) % 12, (m + 6) % 12];
   return chart.palaces.filter(p => branches.includes(p.branch));
 }
-function isInSanFang(chart: ZiweiChart, branch: number): boolean {
+export function isInSanFang(chart: ZiweiChart, branch: number): boolean {
   const m = chart.mingGongBranch;
   return [m, (m + 4) % 12, (m + 8) % 12, (m + 6) % 12].includes(branch);
 }
@@ -81,21 +81,21 @@ function getJiaPalaces(chart: ZiweiChart, branch: number): { prev?: Palace; next
     next: getPalaceByBranch(chart, (branch + 1) % 12),
   };
 }
-function sanFangAllStars(chart: ZiweiChart): Set<string> {
+export function sanFangAllStars(chart: ZiweiChart): Set<string> {
   return new Set(getSanFangPalaces(chart).flatMap(p => p.stars.map(s => s.name)));
 }
 function sanFangShaCount(chart: ZiweiChart, list: string[] = SHA_HARD): number {
   return getSanFangPalaces(chart).reduce((sum, p) => sum + shaCountInPalace(p, list), 0);
 }
-function isBright(palace: Palace, starName: string): boolean {
+export function isBright(palace: Palace, starName: string): boolean {
   const s = findStar(palace, starName);
   return s?.brightness === 'bright';
 }
-function isDim(palace: Palace, starName: string): boolean {
+export function isDim(palace: Palace, starName: string): boolean {
   const s = findStar(palace, starName);
   return s?.brightness === 'dim';
 }
-function getStarSiHua(palace: Palace, starName: string): Star['siHua'] | undefined {
+export function getStarSiHua(palace: Palace, starName: string): Star['siHua'] | undefined {
   return findStar(palace, starName)?.siHua;
 }
 const BRANCH_NAMES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];

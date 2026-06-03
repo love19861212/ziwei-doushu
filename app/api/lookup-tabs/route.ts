@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { detectPatterns, getMingGongSummary } from '@/lib/ziwei/patterns';
+import { detectDoubleStars, getDoubleStarsInPalace } from '@/lib/ziwei/double-stars';
 import { getKnowledge } from '@/lib/seo/knowledge';
 import type { TopicKey } from '@/lib/ziwei/db-analysis';
 import oracleKb from '@/lib/ziwei/oracle_kb.json';
@@ -37,8 +38,8 @@ interface LookupRequest {
       }>;
     }>;
   };
-  // 查询类型: 'star' | 'palace' | 'pattern' | 'sihua' | 'all'
-  type?: 'star' | 'palace' | 'pattern' | 'sihua' | 'all';
+  // 查询类型: 'star' | 'palace' | 'pattern' | 'sihua' | 'double' | 'all'
+  type?: 'star' | 'palace' | 'pattern' | 'sihua' | 'double' | 'all';
   // 聚焦的星曜/宫位/格局名
   target?: string;
   // 流年天干索引（0-9）— 用于查流年四化
@@ -74,6 +75,28 @@ export async function POST(req: NextRequest) {
         }));
       } catch {
         result.patterns = [];
+      }
+    }
+
+    // 1.5 双星同宫 (24种) — 对标Oracle站重点
+    if (type === 'all' || type === 'pattern' || type === 'double') {
+      try {
+        const doubleStars = detectDoubleStars(chart as any);
+        result.doubleStars = doubleStars.map(d => ({
+          name: d.name,
+          short: d.short,
+          level: d.level,
+          nature: d.nature,
+          dingdiao: d.dingdiao,
+          description: d.description,
+          yiju: d.yiju,
+          chuchu: d.chuchu,
+          palaces: d.palaces,
+          inMingGong: d.inMingGong,
+        }));
+      } catch (e) {
+        console.error('doubleStars detect error:', e);
+        result.doubleStars = [];
       }
     }
 
@@ -129,6 +152,18 @@ export async function POST(req: NextRequest) {
     if ((type === 'palace' || type === 'all') && target) {
       const palace = chart.palaces.find(p => p.name === target);
       if (palace) {
+        // 双星同宫（位于此宫）
+        try {
+          result.doubleStarsInPalace = getDoubleStarsInPalace(chart as any, target).map(d => ({
+            name: d.name,
+            short: d.short,
+            level: d.level,
+            dingdiao: d.dingdiao,
+            description: d.description,
+          }));
+        } catch {
+          result.doubleStarsInPalace = [];
+        }
         // 宫内的主星
         const majorStars = palace.stars.filter(s => s.type === 'major');
         const starKnowledge = majorStars.map(star => {

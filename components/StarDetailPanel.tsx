@@ -348,6 +348,42 @@ export default function StarDetailPanel({ star, palaceName, onClose, chart, onAs
               </>
             )}
 
+            {/* 双星同宫提示（来自 /api/lookup-tabs palace 询问） */}
+            {!kbData?.knowledge && kbData && (kbData as any).doubleStarsInPalace && (kbData as any).doubleStarsInPalace.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[10px] tracking-widest flex items-center gap-1.5" style={{ color: 'var(--t-faint)' }}>
+                  <span className="w-3 h-px inline-block" style={{ background: 'var(--t-border-acc)' }} />
+                  本宫双星同宫
+                  <span className="w-3 h-px inline-block" style={{ background: 'var(--t-border-acc)' }} />
+                </div>
+                {(kbData as any).doubleStarsInPalace.map((ds: any) => (
+                  <div key={ds.name} className="rounded-lg p-2.5" style={{
+                    background: ds.level === 'good' ? 'rgba(74,222,128,0.08)' :
+                                ds.level === 'caution' || ds.level === 'bad' ? 'rgba(248,113,113,0.08)' :
+                                'var(--t-surface)',
+                    border: ds.level === 'good' ? '1px solid rgba(74,222,128,0.2)' :
+                            ds.level === 'caution' || ds.level === 'bad' ? '1px solid rgba(248,113,113,0.2)' :
+                            '1px solid var(--t-border)',
+                  }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-bold" style={{ color: 'var(--t-gold)' }}>★ {ds.short}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded" style={{
+                        background: ds.level === 'good' ? 'rgba(74,222,128,0.2)' : 
+                                    ds.level === 'caution' || ds.level === 'bad' ? 'rgba(248,113,113,0.2)' : 
+                                    'rgba(0,0,0,0.1)',
+                        color: ds.level === 'good' ? '#4ade80' : 
+                               ds.level === 'caution' || ds.level === 'bad' ? '#f87171' : 
+                               'var(--t-faint)',
+                      }}>{ds.level}</span>
+                    </div>
+                    <div className="text-[10px] leading-relaxed" style={{ color: 'var(--t-text1)' }}>
+                      {ds.dingdiao}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* 知识库详情（来自 /api/lookup-tabs） */}
             {kbLoading && (
               <div className="text-[10px] text-center py-2" style={{ color: 'var(--t-faint)' }}>
