@@ -137,6 +137,24 @@ export default function ChartPage() {
 
   const handlePalaceClick = (palace: Palace) => {
     setFocus({ type: 'palace', label: palace.name, palace });
+    // 仿 Oracle 站: 点宫位 → 右侧 AI 自动跳到该宫位解读
+    const majorStars = (palace.stars || [])
+      .filter(s => s.type === 'major')
+      .map(s => s.name)
+      .join('、');
+    const minorStars = (palace.stars || [])
+      .filter(s => s.type === 'minor')
+      .map(s => s.name)
+      .join('、');
+    const starsInfo = majorStars
+      ? `主星：${majorStars}。辅星：${minorStars || '无'}。`
+      : `为空宫，借对宫星曜。` ;
+    const prompt = `请深度解读【${palace.name}】的命理含义。${starsInfo}\n参考倪海夏《天纪》体系与古籍《紫微斗数全书》《骨髓赋》《全集》。\n请提供：\n1. 一句话定调\n2. 核心论断 (3-5 句)\n3. 命盘依据 (5 条)\n4. 经典出处 (含引用原文)`;
+    // 延迟一点 setFocus 以免和 promptSeed 竞速
+    setTimeout(() => {
+      setAiPromptSeed(prompt);
+      setFocus(null);
+    }, 50);
   };
 
   const handleSiHuaBadgeClick = (starName: string, siHua: string) => {

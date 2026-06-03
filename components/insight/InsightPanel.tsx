@@ -150,11 +150,15 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
   };
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // 外部 promptSeed 变化时自动填入输入框
+  // 外部 promptSeed 变化时: 仿 Oracle 站 “点宫位 → 直接调 AI” 体验
   useEffect(() => {
-    if (promptSeed) {
+    if (promptSeed && !loading) {
+      // 直接发送, 不只是填入输入框
+      sendToAI(promptSeed);
+    } else if (promptSeed) {
       setInputText(promptSeed);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptSeed]);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
