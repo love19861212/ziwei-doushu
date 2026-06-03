@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { detectPatterns, getMingGongSummary } from '@/lib/ziwei/patterns';
 import { getKnowledge } from '@/lib/seo/knowledge';
 import type { TopicKey } from '@/lib/ziwei/db-analysis';
+import oracleKb from '@/lib/ziwei/oracle_kb.json';
 
 interface AnalysisRequest {
   chart: any;
@@ -93,14 +94,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 3. 该宫位主星入该宫位的解读 ─────────────────
+    // ── 3. 该宫位主星入该宫位的解读（优先 Oracle KB） ─────────
     if (targetPalace) {
       const topicKey = TOPIC_TO_KB[topic];
+      // overview 在 Oracle 里没有，fallback personality
+      const lookupTopic = (topicKey === 'overview') ? 'personality' : topicKey;
       const majorStars = (targetPalace as any).stars.filter((s: any) => s.type === 'major');
 
       for (const star of majorStars) {
+        const oracleEntry = (oracleKb as any)[star.name]?.[lookupTopic];
         const k = getKnowledge(star.name, topicKey);
-        if (k.exists && k.parsed.lundian) {
+
+        if (oracleEntry) {
+          sections.push({
+            title: `【${star.name}入${palaceName}】`,
+            content: [
+              oracleEntry.dingdiao,
+              oracleEntry.lundian,
+              oracleEntry.yiju ? `《命盘依据》${oracleEntry.yiju}` : '',
+              oracleEntry.chuchu ? `《经典出处》${oracleEntry.chuchu}` : '',
+            ].filter(Boolean).join('\n\n'),
+            source: oracleEntry.chuchu || oracleEntry.title || '倪海夏《天纪》体系',
+          });
+        } else if (k.exists && k.parsed.lundian) {
           sections.push({
             title: `【${star.name}入${palaceName}】`,
             content: [k.parsed.dingdiao, k.parsed.lundian].filter(Boolean).join('。'),

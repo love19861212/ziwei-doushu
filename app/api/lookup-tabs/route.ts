@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { detectPatterns, getMingGongSummary } from '@/lib/ziwei/patterns';
 import { getKnowledge } from '@/lib/seo/knowledge';
 import type { TopicKey } from '@/lib/ziwei/db-analysis';
+import oracleKb from '@/lib/ziwei/oracle_kb.json';
 
 interface LookupRequest {
   chart: {
@@ -94,6 +95,12 @@ export async function POST(req: NextRequest) {
       );
       if (palace) {
         const topic = mapPalaceToTopic(palace.name);
+        // 优先查 Oracle 知识库（12 topic 完整数据）
+        let oracleEntry = (oracleKb as any)[starName]?.[topic];
+        // overview topic 在 Oracle 里没有数据，fallback 到 personality
+        if (!oracleEntry && topic === 'overview') {
+          oracleEntry = (oracleKb as any)[starName]?.['personality'];
+        }
         const knowledge = getKnowledge(starName, topic);
         result.starKnowledge = {
           star: starName,
@@ -101,7 +108,14 @@ export async function POST(req: NextRequest) {
           palaceBranch: palace.branch,
           palaceStem: palace.stem,
           topic,
-          knowledge: knowledge.exists ? {
+          source: oracleEntry ? 'oracle' : (knowledge.exists ? 'local' : 'none'),
+          knowledge: oracleEntry ? {
+            dingdiao: oracleEntry.dingdiao,
+            lundian: oracleEntry.lundian,
+            yiju: oracleEntry.yiju,
+            chuchu: oracleEntry.chuchu,
+            title: oracleEntry.title,
+          } : knowledge.exists ? {
             dingdiao: knowledge.parsed.dingdiao,
             lundian: knowledge.parsed.lundian,
             yiju: knowledge.parsed.yiju,
@@ -119,13 +133,17 @@ export async function POST(req: NextRequest) {
         const majorStars = palace.stars.filter(s => s.type === 'major');
         const starKnowledge = majorStars.map(star => {
           const topic = mapPalaceToTopic(palace.name);
+          let oracleEntry = (oracleKb as any)[star.name]?.[topic];
+          if (!oracleEntry && topic === 'overview') {
+            oracleEntry = (oracleKb as any)[star.name]?.['personality'];
+          }
           const k = getKnowledge(star.name, topic);
           return {
             star: star.name,
             topic,
-            exists: k.exists,
-            dingdiao: k.parsed.dingdiao,
-            lundian: k.parsed.lundian,
+            source: oracleEntry ? 'oracle' : (k.exists ? 'local' : 'none'),
+            dingdiao: oracleEntry?.dingdiao || k.parsed.dingdiao,
+            lundian: oracleEntry?.lundian || k.parsed.lundian,
           };
         });
         result.palaceKnowledge = {
