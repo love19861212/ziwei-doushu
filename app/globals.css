@@ -441,3 +441,10 @@ body {
   background-color: #1a1d2e !important;
   color: #e8eef8 !important;
 }
+@keyframes dotPulse {
+  0%, 60%, 100% { opacity: 0.25; transform: scale(0.85); }
+  30% { opacity: 1; transform: scale(1.1); }
+}
+
+/* 极简打字指示器 */
+/* keyframes dotPulse 已定义于上行 */

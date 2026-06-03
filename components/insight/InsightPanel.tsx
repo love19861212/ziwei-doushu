@@ -440,6 +440,25 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
             })()
         ))}
         <div ref={bottomRef}/>
+
+        {/* 极简打字指示器: 3 个闪烁小圆点, 只在 LLM 思考阶段显示 (text 还是空时) */}
+        {loading && chatHistory[chatHistory.length-1]?.role==='ai' && chatHistory[chatHistory.length-1]?.text==='' && (
+          <div style={{
+            display:'flex', alignItems:'center', gap:6,
+            padding:'12px 14px', alignSelf:'flex-start',
+            background:'#FFFFFF', border:'1px solid rgba(184,146,42,0.18)',
+            borderRadius:12, boxShadow:'0 1px 2px rgba(0,0,0,0.03)',
+          }}>
+            {[0,1,2].map(i => (
+              <span key={i} style={{
+                width:6, height:6, borderRadius:'50%',
+                background:'#B8922A',
+                display:'inline-block',
+                animation: `dotPulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+              }}/>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Input Row */}
