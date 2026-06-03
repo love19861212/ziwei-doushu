@@ -5,7 +5,13 @@ import type { ZiweiChart, Palace } from '@/lib/ziwei/types';
 import type { TimeView } from '@/components/chart/TimeNav';
 
 interface SelectedSiHua { starName: string; siHua: string; view: TimeView; }
-interface InsightPanelProps { chart: ZiweiChart; selectedPalace?: Palace | null; selectedSiHua?: SelectedSiHua | null; }
+interface InsightPanelProps {
+  chart: ZiweiChart;
+  selectedPalace?: Palace | null;
+  selectedSiHua?: SelectedSiHua | null;
+  // 外部点击“深入提问 AI”后同步过来的提示词
+  promptSeed?: string | null;
+}
 interface ChatMsg { role: 'user' | 'ai'; text: string; }
 
 const TOPICS = [
@@ -96,7 +102,7 @@ function parseAiText(text: string) {
   return text.split('\n').map((line, i) => renderLine(line.trim(), i));
 }
 
-export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: InsightPanelProps) {
+export default function InsightPanel({ chart, selectedPalace, selectedSiHua, promptSeed }: InsightPanelProps) {
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -113,6 +119,13 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
     });
   };
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // 外部 promptSeed 变化时自动填入输入框
+  useEffect(() => {
+    if (promptSeed) {
+      setInputText(promptSeed);
+    }
+  }, [promptSeed]);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 

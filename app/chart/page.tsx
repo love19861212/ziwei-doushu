@@ -8,6 +8,7 @@ import InsightPanel from '@/components/insight/InsightPanel';
 import PatternsCard from '@/components/PatternsCard';
 import FamousPersonCard from '@/components/FamousPersonCard';
 import ShareModal from '@/components/ShareModal';
+import StarDetailPanel from '@/components/StarDetailPanel';
 import { FAMOUS_PERSONS } from '@/lib/ziwei/famous';
 type FocusState = { type: string; label: string; star?: any; palace?: any; siHua?: string };
 import type { BirthInfo, ZiweiChart, Star, Palace } from '@/lib/ziwei/types';
@@ -25,6 +26,8 @@ export default function ChartPage() {
   const [formKey, setFormKey] = useState(0);
   const [copied, setCopied] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  // 同步点击星耀弹出的"深入提问AI"到InsightPanel
+  const [aiPromptSeed, setAiPromptSeed] = useState<string | null>(null);
 
   // ── 时间视图状态 ──────────────────────────────────────────
   const [view, setView] = useState<TimeView>('mingpan');
@@ -347,6 +350,7 @@ export default function ChartPage() {
                 chart={chart}
                 selectedPalace={focus?.palace}
                 selectedSiHua={focus?.siHua ? { starName: focus.star?.name || '', siHua: focus.siHua, view } : null}
+                promptSeed={aiPromptSeed}
               />
             </div>
 
@@ -371,6 +375,32 @@ export default function ChartPage() {
             city: savedForm.city || undefined,
           }}
         />
+      )}
+
+      {/* 星耀/宫位/四化 解读弹窗 — 调 /api/lookup-tabs 拉知识库内容 */}
+      {chart && (focus?.star || focus?.palace) && (
+        <div
+          className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-3 sm:p-6"
+          style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setFocus(null)}
+        >
+          <div
+            className="w-full max-w-md max-h-[80vh] overflow-hidden rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--bg-0)', border: '1px solid var(--bdr-med)' }}
+          >
+            <StarDetailPanel
+              star={focus?.star || null}
+              palaceName={focus?.palace?.name}
+              onClose={() => setFocus(null)}
+              chart={chart}
+              onAskAI={(prompt) => {
+                setAiPromptSeed(prompt);
+                setFocus(null);
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

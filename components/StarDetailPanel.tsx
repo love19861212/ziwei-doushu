@@ -1,12 +1,28 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Star } from '@/lib/ziwei/types';
+import type { Star, Palace, ZiweiChart } from '@/lib/ziwei/types';
 import { STAR_DESCRIPTIONS } from '@/lib/ziwei/constants';
 
 interface StarDetailPanelProps {
   star: Star | null;
   palaceName?: string;
   onClose: () => void;
+  // 查表模式：传入chart则去后端拉知识库详情
+  chart?: ZiweiChart | null;
+  // 调高聊天面板：点击"深度解读"按钮时调用
+  onAskAI?: (prompt: string) => void;
+}
+
+interface KnowledgeData {
+  star: string;
+  palace: string;
+  knowledge: {
+    dingdiao: string;
+    lundian: string;
+    yiju: string;
+    chuchu: string;
+  } | null;
 }
 
 // 倪海夏体系各星详细解读（参考顾祥弘《飞星紫微斗数全书》及南北山人《紫微斗数全书》）
@@ -176,10 +192,45 @@ const siHuaColors: Record<string, string> = {
   '忌': 'text-red-400 bg-red-500/10 border-red-500/30',
 };
 
-export default function StarDetailPanel({ star, palaceName, onClose }: StarDetailPanelProps) {
+export default function StarDetailPanel({ star, palaceName, onClose, chart, onAskAI }: StarDetailPanelProps) {
   const desc = star ? STAR_DESCRIPTIONS[star.name] : null;
   const detail = star ? STAR_DETAIL[star.name] : null;
   const typeConfig = star ? levelConfig[star.type] : null;
+
+  // 调用 /api/lookup-tabs 拉知识库详情
+  const [kbData, setKbData] = useState<KnowledgeData | null>(null);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbExpanded, setKbExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!star || !chart || star.type !== 'major' || !palaceName) {
+      setKbData(null);
+      return;
+    }
+    let cancelled = false;
+    setKbLoading(true);
+    fetch('/api/lookup-tabs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        type: 'star',
+        target: star.name,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        setKbData(data.starKnowledge || null);
+      })
+      .catch(() => {
+        if (!cancelled) setKbData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setKbLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [star?.name, palaceName, chart]);
 
   return (
     <AnimatePresence>
@@ -295,6 +346,75 @@ export default function StarDetailPanel({ star, palaceName, onClose }: StarDetai
                   </div>
                 </div>
               </>
+            )}
+
+            {/* 知识库详情（来自 /api/lookup-tabs） */}
+            {kbLoading && (
+              <div className="text-[10px] text-center py-2" style={{ color: 'var(--t-faint)' }}>
+                加载《天纪》解读…
+              </div>
+            )}
+            {kbData?.knowledge && (
+              <div className="space-y-2">
+                <div className="text-[10px] tracking-widest flex items-center gap-1.5" style={{ color: 'var(--t-faint)' }}>
+                  <span className="w-3 h-px inline-block" style={{ background: 'var(--t-border-acc)' }} />
+                  《天纪》知识库
+                  <span className="w-3 h-px inline-block" style={{ background: 'var(--t-border-acc)' }} />
+                </div>
+                {kbData.knowledge.dingdiao && (
+                  <div className="rounded-lg p-2.5" style={{ background: 'rgba(212,168,67,0.08)', border: '1px solid rgba(212,168,67,0.2)' }}>
+                    <div className="text-[9px] mb-1" style={{ color: 'var(--t-gold)' }}>★ 一句话定调</div>
+                    <div className="text-[11px] leading-relaxed" style={{ color: 'var(--t-text1)' }}>
+                      {kbData.knowledge.dingdiao}
+                    </div>
+                  </div>
+                )}
+                {kbData.knowledge.lundian && (
+                  <div className="rounded-lg p-2.5" style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                    <div className="text-[9px] mb-1" style={{ color: 'var(--t-faint)' }}>核心论断</div>
+                    <motion.div
+                      initial={false}
+                      animate={{ height: kbExpanded ? 'auto' : 100, overflow: 'hidden' }}
+                      transition={{ duration: 0.2 }}
+                      className="text-[11px] leading-relaxed"
+                      style={{ color: 'var(--t-text2)' }}
+                    >
+                      {kbData.knowledge.lundian}
+                    </motion.div>
+                    {kbData.knowledge.lundian.length > 80 && (
+                      <button
+                        onClick={() => setKbExpanded(!kbExpanded)}
+                        className="text-[9px] mt-1 underline"
+                        style={{ color: 'var(--t-gold)' }}
+                      >
+                        {kbExpanded ? '收起' : '展开全文'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {kbData.knowledge.yiju && (
+                  <div className="rounded-lg p-2.5" style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                    <div className="text-[9px] mb-1" style={{ color: 'var(--t-faint)' }}>命盘依据</div>
+                    <div className="text-[11px] leading-relaxed whitespace-pre-line" style={{ color: 'var(--t-text2)' }}>
+                      {kbData.knowledge.yiju}
+                    </div>
+                  </div>
+                )}
+                {kbData.knowledge.chuchu && (
+                  <div className="text-[10px] italic px-1" style={{ color: 'var(--t-faint)' }}>
+                    📜 {kbData.knowledge.chuchu}
+                  </div>
+                )}
+                {onAskAI && (
+                  <button
+                    onClick={() => onAskAI(`请深度解读${star?.name}在${palaceName}的命理含义，参考倪海夏《天纪》体系与古籍《紫微斗数全集》《骨髓赋》。`)}
+                    className="w-full text-[11px] py-2 rounded-lg transition"
+                    style={{ background: 'var(--t-gold)', color: '#fff' }}
+                  >
+                    🤖 深入提问 AI
+                  </button>
+                )}
+              </div>
             )}
 
             {/* 辅星/煞星说明 */}
