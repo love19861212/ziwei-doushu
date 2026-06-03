@@ -1,7 +1,7 @@
 'use client';
-import TimeNav, { getYearStemIndex, getMonthStemIndex, getDayStemIndex, getHourStemIndex, buildSiHuaOverlay } from './TimeNav';
+import TimeNav, { getYearStemIndex, getMonthStemIndex, getDayStemIndex, getHourStemIndex, buildSiHuaOverlay, type TimeView } from './TimeNav';
 
-export type TimeView = 'mingpan' | 'daxian' | 'liunian';
+export type { TimeView };
 
 interface TopBarProps {
   chart?: any;

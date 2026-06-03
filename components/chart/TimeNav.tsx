@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { STEMS, SI_HUA_TABLE } from '@/lib/ziwei/constants';
 import type { ZiweiChart } from '@/lib/ziwei/types';
 
-export type TimeView = 'mingpan' | 'daxian' | 'liunian';
+export type TimeView = 'mingpan' | 'daxian' | 'liunian' | 'liuyue' | 'liuri' | 'liushi';
 
 interface TimeNavProps {
   chart: ZiweiChart;
@@ -12,6 +12,8 @@ interface TimeNavProps {
   liuyueMonth?: number;
   liuriDay?: number;
   liushiHour?: number;
+  // 当前大限索引 (Oracle 顶部 tab '大限 35-44岁' 用)
+  currentDaXianIndex?: number;
   onViewChange: (view: TimeView) => void;
   onYearChange: (year: number) => void;
   onMonthChange?: (month: number) => void;
@@ -147,6 +149,30 @@ export default function TimeNav({
           onClick={() => onViewChange('daxian')}
         >
           {currentDx ? `大限 ${currentDx.startAge}–${currentDx.endAge}` : '大限'}
+        </TabButton>
+
+        {/* 流月 — 顶级 tab (Oracle 6 档) */}
+        <TabButton
+          active={view === 'liuyue'}
+          onClick={() => onViewChange('liuyue')}
+        >
+          流月
+        </TabButton>
+
+        {/* 流日 */}
+        <TabButton
+          active={view === 'liuri'}
+          onClick={() => onViewChange('liuri')}
+        >
+          流日
+        </TabButton>
+
+        {/* 流时 */}
+        <TabButton
+          active={view === 'liushi'}
+          onClick={() => onViewChange('liushi')}
+        >
+          流时
         </TabButton>
 
         {/* 流年 — 含年份切换 */}
