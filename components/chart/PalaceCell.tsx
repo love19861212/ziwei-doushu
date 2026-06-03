@@ -63,6 +63,7 @@ export default function PalaceCell({
   const majorStars = stars.filter(s => s.type === 'major');
   const luckyStars = stars.filter(s => s.type === 'lucky');
   const shaStars = stars.filter(s => s.type === 'sha');
+  const minorStars = stars.filter(s => s.type === 'minor');
 
   return (
     <motion.div
@@ -193,6 +194,32 @@ export default function PalaceCell({
               {s.name}{s.siHua && <SiHuaBadge siHua={s.siHua} />}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* 辅星 (minor stars) - 倪师体系核心: 左辅右弼/文曲文昌/天魁天钺/禄存天马等 */}
+      {minorStars.length > 0 && (
+        <div className="flex flex-wrap gap-x-1 mt-0.5">
+          {minorStars.map(s => {
+            const overlaySiHua = overlayStarSiHua?.[s.name];
+            return (
+              <span key={s.name} className="inline-flex items-center text-[9px] text-slate-500/80 leading-tight" title={s.name}>
+                {s.name}
+                {s.siHua && <SiHuaBadge siHua={s.siHua} />}
+                {overlaySiHua && (
+                  <SiHuaBadge
+                    siHua={overlaySiHua}
+                    overlay
+                    label={overlayLabel}
+                    onClick={e => {
+                      e.stopPropagation();
+                      onSiHuaClick?.(s.name, overlaySiHua);
+                    }}
+                  />
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 
