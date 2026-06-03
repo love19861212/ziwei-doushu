@@ -150,16 +150,64 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
   };
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // 外部 promptSeed 变化时: 仿 Oracle 站 “点宫位 → 直接调 AI” 体验
+  // 外部 promptSeed 变化时: 仿 Oracle 站 “点宫位 → 直接调真知识库”
   useEffect(() => {
     if (promptSeed && !loading) {
-      // 直接发送, 不只是填入输入框
-      sendToAI(promptSeed);
+      // 检查是否是宫位点击 (特珠标记: [PALACE]宫名[/PALACE] 开头)
+      const palaceMatch = promptSeed.match(/^\[PALACE\](.+?)\[\/PALACE\]/);
+      if (palaceMatch) {
+        fetchPalaceAnalysis(palaceMatch[1]);
+      } else {
+        sendToAI(promptSeed);
+      }
     } else if (promptSeed) {
       setInputText(promptSeed);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptSeed]);
+
+  // 【Oracle 站同款】点宫位 → 调 /api/analysis 拿该宫 4 段真知识库解读
+  const fetchPalaceAnalysis = async (palaceName: string) => {
+    // 宫名 → topic 映射
+    const PALACE_TOPIC: Record<string, string> = {
+      '命宫': 'overall',
+      '父母': 'family',
+      '福德': 'family',
+      '田宅': 'family',
+      '兄弟': 'family',
+      '夫妻': 'love',
+      '子女': 'family',
+      '财帛': 'wealth',
+      '疾厄': 'health',
+      '迁移': 'career',
+      '官禄': 'career',
+      '奴仆': 'family',
+    };
+    const topic = PALACE_TOPIC[palaceName] || 'overall';
+    try {
+      const res = await fetch('/api/analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chart, topic, options: { maxLength: 2000 } }),
+      });
+      const data = await res.json();
+      if (data.sections && Array.isArray(data.sections)) {
+        // 拼接为单个文本: 各 section 之间用 \n\n 隔开
+        const combined = data.sections.map((s: any) => {
+          return `### ${s.title}\n${s.content}${s.source ? `\n\n《出处》${s.source}` : ''}`;
+        }).join('\n\n---\n\n');
+        // 注入到 chatHistory
+        setChatHistory(prev => [...prev,
+          { role: 'user', text: `【${palaceName}】深度解读` },
+          { role: 'ai', text: combined },
+        ]);
+      } else {
+        setChatHistory(prev => [...prev, { role: 'ai', text: '该宫位暂无解读数据' }]);
+      }
+    } catch (e) {
+      setChatHistory(prev => [...prev, { role: 'ai', text: '解读加载失败: ' + (e instanceof Error ? e.message : '未知错误') }]);
+    }
+  };
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
