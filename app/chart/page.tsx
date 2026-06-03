@@ -9,6 +9,8 @@ import PatternsCard from '@/components/PatternsCard';
 import FamousPersonCard from '@/components/FamousPersonCard';
 import ShareModal from '@/components/ShareModal';
 import StarDetailPanel from '@/components/StarDetailPanel';
+import BrightnessSchoolSelector from '@/components/BrightnessSchoolSelector';
+import type { BrightnessSchool } from '@/lib/ziwei/brightness-schools';
 import { FAMOUS_PERSONS } from '@/lib/ziwei/famous';
 type FocusState = { type: string; label: string; star?: any; palace?: any; siHua?: string };
 import type { BirthInfo, ZiweiChart, Star, Palace } from '@/lib/ziwei/types';
@@ -28,6 +30,9 @@ export default function ChartPage() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   // 同步点击星耀弹出的"深入提问AI"到InsightPanel
   const [aiPromptSeed, setAiPromptSeed] = useState<string | null>(null);
+  // 主星亮度表派系 (default/QS/XD1/ZZ/XD2)
+  const [brightnessSchool, setBrightnessSchool] = useState<BrightnessSchool>('default');
+  const [brightnessOpen, setBrightnessOpen] = useState(false);
 
   // ── 时间视图状态 ──────────────────────────────────────────
   const [view, setView] = useState<TimeView>('mingpan');
@@ -401,6 +406,42 @@ export default function ChartPage() {
             />
           </div>
         </div>
+      )}
+
+      {/* 14 主星亮度表切换面板 (Oracle 站右下角✦按钮) */}
+      {chart && (
+        <>
+          <button
+            onClick={() => setBrightnessOpen(true)}
+            style={{
+              position: 'fixed',
+              right: '16px',
+              bottom: '80px',
+              zIndex: 30,
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: 'var(--bg-0)',
+              border: '1px solid var(--ac)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              color: 'var(--ac)',
+              fontSize: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="14 主星亮度表"
+          >
+            ✦
+          </button>
+          <BrightnessSchoolSelector
+            open={brightnessOpen}
+            onClose={() => setBrightnessOpen(false)}
+            currentSchool={brightnessSchool}
+            onSchoolChange={setBrightnessSchool}
+          />
+        </>
       )}
     </div>
   );
