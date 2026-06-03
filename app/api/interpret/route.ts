@@ -118,6 +118,8 @@ export async function POST(req: NextRequest) {
         temperature: 0.7,
         max_tokens: 16000,
         stream: true,
+        // 关闭 MiniMax M2.7 思考过程
+        reasoning_split: false,
       }),
     });
 
@@ -154,11 +156,13 @@ export async function POST(req: NextRequest) {
               }
               try {
                 const data = JSON.parse(dataStr);
+                // 过滤 reasoning_content (MiniMax M2.7 思考过程)
                 const text = data.choices?.[0]?.delta?.content;
                 if (text) {
                   const eventData = JSON.stringify({ delta: { text } });
                   controller.enqueue(encoder.encode(`data: ${eventData}\n`));
                 }
+                // 不发送 reasoning_content (思考过程) 和 reasoning_detail
               } catch {}
             }
           }

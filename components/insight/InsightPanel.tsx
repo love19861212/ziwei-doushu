@@ -380,7 +380,6 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
                     <span style={{display:'flex', alignItems:'center', gap:4}}>
                       <span style={{fontSize:12}}>✦</span>
                       命理解读
-                      {isStreaming && <span style={{color:'#8A8A82', fontStyle:'italic', fontWeight:400, marginLeft:6}}>解读中...</span>}
                     </span>
                     {isLong && !isStreaming && (
                       <button onClick={() => toggleAiExpand(i)} style={{
@@ -440,9 +439,6 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
               );
             })()
         ))}
-        {loading && chatHistory[chatHistory.length-1]?.role==='user' && (
-          <div style={{background:'#FFFFFF',border:'1px solid rgba(0,0,0,0.07)',borderRadius:12,padding:'12px',fontSize:14,color:'#8A8A82',fontStyle:'italic',alignSelf:'flex-start'}}>正在解读...</div>
-        )}
         <div ref={bottomRef}/>
       </div>
 
