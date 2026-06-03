@@ -17,6 +17,7 @@ interface TopBarProps {
   onHourChange?: (h: number) => void;
   onShare?: () => void;
   onExport?: () => void;
+  onReport?: () => void;
   copied?: boolean;
 }
 
@@ -34,6 +35,7 @@ export default function TopBar({
   onHourChange,
   onShare,
   onExport,
+  onReport,
   copied,
 }: TopBarProps) {
   return (
@@ -85,6 +87,11 @@ export default function TopBar({
             {onExport && (
               <button onClick={onExport} className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition">
                 导出
+              </button>
+            )}
+            {onReport && (
+              <button onClick={onReport} className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg hover:from-amber-700 hover:to-amber-800 transition font-medium">
+                📄 全盘报告
               </button>
             )}
           </div>

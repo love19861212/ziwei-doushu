@@ -8,6 +8,7 @@ import InsightPanel from '@/components/insight/InsightPanel';
 import PatternsCard from '@/components/PatternsCard';
 import FamousPersonCard from '@/components/FamousPersonCard';
 import ShareModal from '@/components/ShareModal';
+import ReportModal from '@/components/ReportModal';
 import StarDetailPanel from '@/components/StarDetailPanel';
 import BrightnessSchoolSelector from '@/components/BrightnessSchoolSelector';
 import DaXianPanel from '@/components/DaXianPanel';
@@ -29,6 +30,7 @@ export default function ChartPage() {
   const [formKey, setFormKey] = useState(0);
   const [copied, setCopied] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   // 同步点击星耀弹出的"深入提问AI"到InsightPanel
   const [aiPromptSeed, setAiPromptSeed] = useState<string | null>(null);
   // 主星亮度表派系 (default/QS/XD1/ZZ/XD2)
@@ -299,6 +301,7 @@ export default function ChartPage() {
             onHourChange={setLiushiHour}
             onShare={savedForm ? handleShare : undefined}
             onExport={() => window.print()}
+            onReport={chart ? () => setReportModalOpen(true) : undefined}
             copied={copied}
           />
 
@@ -444,6 +447,15 @@ export default function ChartPage() {
             onSchoolChange={setBrightnessSchool}
           />
         </>
+      )}
+
+      {/* 全盘报告弹窗 — 调 /api/report, FREE 返402付费墙, PRO 返200完整报告 */}
+      {chart && (
+        <ReportModal
+          open={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          chart={chart}
+        />
       )}
     </div>
   );
