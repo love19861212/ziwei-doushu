@@ -103,7 +103,37 @@ function parseAiText(text: string) {
 }
 
 export default function InsightPanel({ chart, selectedPalace, selectedSiHua, promptSeed }: InsightPanelProps) {
+  // 生成 history key (基于 chart 核心数据)
+  const historyKey = `ai_chat_${chart.birthInfo.year}_${chart.birthInfo.month}_${chart.birthInfo.day}_${chart.birthInfo.hour}_${chart.birthInfo.gender}`;
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // 加载历史
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem(historyKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setChatHistory(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('[InsightPanel] localStorage read failed:', e);
+    }
+    setHistoryLoaded(true);
+  }, [historyKey]);
+
+  // 保存历史
+  useEffect(() => {
+    if (!historyLoaded || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(historyKey, JSON.stringify(chatHistory));
+    } catch (e) {
+      console.warn('[InsightPanel] localStorage write failed:', e);
+    }
+  }, [chatHistory, historyKey, historyLoaded]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
@@ -175,6 +205,17 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
     await sendToAI(TOPIC_PROMPTS[topic]);
   };
 
+  // 清空历史
+  const handleClearHistory = () => {
+    if (typeof window === 'undefined') return;
+    if (confirm('确定清空所有问答历史？')) {
+      setChatHistory([]);
+      try {
+        localStorage.removeItem(historyKey);
+      } catch {}
+    }
+  };
+
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || loading) return;
@@ -200,6 +241,11 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
         ))}
         {loading && <button onClick={()=>{abortRef.current?.abort();setLoading(false);}}
           style={{padding:'5px 12px',borderRadius:999,fontSize:13,border:'1px solid rgba(168,50,40,0.25)',background:'rgba(168,50,40,0.08)',color:'#A83228',cursor:'pointer'}}>停止</button>}
+        {chatHistory.length > 0 && !loading && (
+          <button onClick={handleClearHistory}
+            style={{padding:'5px 10px',borderRadius:999,fontSize:11,border:'1px solid var(--bdr)',background:'transparent',color:'var(--tx-3)',cursor:'pointer',marginLeft:'auto'}}
+            title="清空所有问答历史">🗑️ 清空历史</button>
+        )}
       </div>
 
       {/* Chat Area */}
