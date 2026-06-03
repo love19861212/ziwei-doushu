@@ -384,6 +384,52 @@ export default function StarDetailPanel({ star, palaceName, onClose, chart, onAs
               </div>
             )}
 
+            {/* 三方四正（点宫位时显示） */}
+            {kbData && (kbData as any).sanFang && (kbData as any).sanFang.origin && (
+              <div className="space-y-2">
+                <div className="text-[10px] tracking-widest flex items-center gap-1.5" style={{ color: 'var(--t-faint)' }}>
+                  <span className="w-3 h-px inline-block" style={{ background: 'var(--t-border-acc)' }} />
+                  三方四正
+                  <span className="w-3 h-px inline-block" style={{ background: 'var(--t-border-acc)' }} />
+                </div>
+                <div className="rounded-lg p-2.5" style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}>
+                  <div className="text-[10px] leading-relaxed" style={{ color: 'var(--t-text2)' }}>
+                    <div>本宫：<span className="font-bold" style={{ color: 'var(--t-gold)' }}>{(kbData as any).sanFang.origin}</span></div>
+                    {(kbData as any).sanFang.duiGong && <div>对宫：{(kbData as any).sanFang.duiGong}</div>}
+                    <div>三合：{((kbData as any).sanFang.sanHe || []).join('、')}</div>
+                    <div>夹宫：{(kbData as any).sanFang.jiaGong?.prev || '?'} · {(kbData as any).sanFang.jiaGong?.next || '?'}</div>
+                  </div>
+                </div>
+                {((kbData as any).sanFang.summary?.吉?.length > 0 || (kbData as any).sanFang.summary?.煞?.length > 0) && (
+                  <div className="grid grid-cols-1 gap-1">
+                    {((kbData as any).sanFang.summary.吉 as string[]).map((g: string, i: number) => (
+                      <div key={i} className="text-[10px] px-2 py-1 rounded" style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80' }}>
+                        ✦ {g}
+                      </div>
+                    ))}
+                    {((kbData as any).sanFang.summary.煞 as string[]).map((s: string, i: number) => (
+                      <div key={i} className="text-[10px] px-2 py-1 rounded" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171' }}>
+                        ✧ {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {onAskAI && (
+                  <button
+                    onClick={() => {
+                      const sf = (kbData as any).sanFang;
+                      const prompt = `请以三方四正详细分析${sf.origin}的命理。\n三方四正资料：\n${sf.aiFormat}\n要求：请综合主星庙旺、四化、辅弼、魁钺、羊陀等吉煞情况，给出专业的吉凶判断。`;
+                      onAskAI(prompt);
+                    }}
+                    className="w-full text-[11px] py-2 rounded-lg transition"
+                    style={{ background: 'var(--t-gold)', color: '#fff' }}
+                  >
+                    🤖 让 AI 深入分析三方四正
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* 知识库详情（来自 /api/lookup-tabs） */}
             {kbLoading && (
               <div className="text-[10px] text-center py-2" style={{ color: 'var(--t-faint)' }}>

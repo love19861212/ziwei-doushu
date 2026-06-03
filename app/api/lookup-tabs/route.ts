@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectPatterns, getMingGongSummary } from '@/lib/ziwei/patterns';
 import { detectDoubleStars, getDoubleStarsInPalace } from '@/lib/ziwei/double-stars';
+import { calcSanFang, formatSanFangForAI } from '@/lib/ziwei/sanfang';
 import { getKnowledge } from '@/lib/seo/knowledge';
 import type { TopicKey } from '@/lib/ziwei/db-analysis';
 import oracleKb from '@/lib/ziwei/oracle_kb.json';
@@ -166,6 +167,25 @@ export async function POST(req: NextRequest) {
         }
         // 宫内的主星
         const majorStars = palace.stars.filter(s => s.type === 'major');
+        // 三方四正计算
+        try {
+          const sf = calcSanFang(chart as any, palace.branch);
+          if (sf) {
+            result.sanFang = {
+              origin: sf.origin.name,
+              duiGong: sf.duiGong?.name || null,
+              sanHe: sf.sanHe.map(p => p.name),
+              jiaGong: { prev: sf.jiaGong.prev?.name || null, next: sf.jiaGong.next?.name || null },
+              majorStars: sf.majorStars.map(m => ({ star: m.star.name, palace: m.palace.name, from: m.fromPalace })),
+              luckyStars: sf.luckyStars.map(m => ({ star: m.star.name, palace: m.palace.name, from: m.fromPalace })),
+              shaStars: sf.shaStars.map(m => ({ star: m.star.name, palace: m.palace.name, from: m.fromPalace })),
+              summary: sf.summary,
+              aiFormat: formatSanFangForAI(sf),
+            };
+          }
+        } catch (e) {
+          console.error('sanfang error:', e);
+        }
         const starKnowledge = majorStars.map(star => {
           const topic = mapPalaceToTopic(palace.name);
           let oracleEntry = (oracleKb as any)[star.name]?.[topic];
