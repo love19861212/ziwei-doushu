@@ -166,9 +166,9 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptSeed]);
 
-  // 【Oracle 站同款】点宫位 → 调 /api/analysis 拿该宫 4 段真知识库解读
+  // 【Oracle 站同款】点宫位 → 调 /api/interpret 走 LLM streaming, 强约束 5 段结构
   const fetchPalaceAnalysis = async (palaceName: string) => {
-    // 宫名 → topic 映射
+    // 宫名 → topic 映射 (供 oracle_kb 作底座)
     const PALACE_TOPIC: Record<string, string> = {
       '命宫': 'overall',
       '父母': 'family',
@@ -184,28 +184,74 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
       '奴仆': 'family',
     };
     const topic = PALACE_TOPIC[palaceName] || 'overall';
+
+    // 1. 同步取该宫位 + 主星的真知识库底座
+    let kbContext = '';
     try {
-      const res = await fetch('/api/analysis', {
+      const ar = await fetch('/api/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, topic, options: { maxLength: 2000 } }),
       });
-      const data = await res.json();
-      if (data.sections && Array.isArray(data.sections)) {
-        // 拼接为单个文本: 各 section 之间用 \n\n 隔开
-        const combined = data.sections.map((s: any) => {
-          return `### ${s.title}\n${s.content}${s.source ? `\n\n《出处》${s.source}` : ''}`;
-        }).join('\n\n---\n\n');
-        // 注入到 chatHistory
-        setChatHistory(prev => [...prev,
-          { role: 'user', text: `【${palaceName}】深度解读` },
-          { role: 'ai', text: combined },
-        ]);
-      } else {
-        setChatHistory(prev => [...prev, { role: 'ai', text: '该宫位暂无解读数据' }]);
+      const ad = await ar.json();
+      if (ad.sections && Array.isArray(ad.sections)) {
+        kbContext = ad.sections.map((s: any) => `${s.title}\n${s.content}`).join('\n\n---\n\n');
+      }
+    } catch {}
+
+    // 2. 注入 user prompt
+    setChatHistory(prev => [...prev, { role: 'user', text: `【${palaceName}】深度解读` }]);
+
+    // 3. 调 LLM streaming, 强约束 5 段结构
+    const userPrompt = `请分析用户命盘中的【${palaceName}】。\n\n以下是该宫位的真知识库参考资料 (请以这些为事实底座, 严格按指定结构输出, 不要拓展到其他宫位):\n\n${kbContext || '该宫位暂无参考资料, 请基于本宫主星/辅星/四化自主解读.'}\n\n输出结构 (必须严格遵守, 不可遗漏或调换顺序):\n\n【一句话结论】\n(1 句)\n\n【核心判断】\n(2-3 段, 每段 2-4 句, 仅谈 ${palaceName} 本身)\n\n【命盘依据】\n(3-5 条, 每条以 · 开头, 说明为何如此判断)\n\n【风险提醒】\n(1 段, 说明该宫的潜在问题或需注意事项)\n\n【行动建议】\n(2-3 条, 每条以数字编号, 给命主具体可行的建议)\n\n末尾输出:\n<<STAR>>星名1=庙/旺/平/陷,星名2=庙/旺/平/陷<</STAR>>\n<<SUGGEST>>与${palaceName}相关的追问1|追问2|追问3<</SUGGEST>>`;
+
+    setLoading(true);
+    abortRef.current = new AbortController();
+    // 先添加一个空的 ai message 用于流式填充
+    setChatHistory(prev => [...prev, { role: 'ai', text: '' }]);
+
+    try {
+      const res = await fetch('/api/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chart,
+          messages: [{ role: 'user', content: userPrompt }],
+          topic,
+        }),
+        signal: abortRef.current.signal,
+      });
+      if (!res.ok || !res.body) throw new Error('AI请求失败');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let full = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data: ')) continue;
+          const dataStr = trimmed.slice(6).trim();
+          if (dataStr === '[DONE]') break;
+          try {
+            const data = JSON.parse(dataStr);
+            if (data.delta?.text) {
+              full += data.delta.text;
+              setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: full }]);
+            }
+          } catch {}
+        }
       }
     } catch (e) {
-      setChatHistory(prev => [...prev, { role: 'ai', text: '解读加载失败: ' + (e instanceof Error ? e.message : '未知错误') }]);
+      if (e instanceof Error && e.name !== 'AbortError') {
+        setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: '解读失败, 请稍后重试: ' + e.message }]);
+      }
+    } finally {
+      setLoading(false);
     }
   };
   const abortRef = useRef<AbortController | null>(null);
