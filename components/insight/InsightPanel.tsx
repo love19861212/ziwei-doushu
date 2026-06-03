@@ -137,6 +137,8 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  // 【当前聚焦宫位】Oracle 站交互: 右侧面板显示 "当前聚焦: 某某宫"
+  const [focusPalace, setFocusPalace] = useState<string | null>(null);
   // 折叠状态: 跟踪每个 AI message 的展开/收起. 默认全部收起
   // streaming 中(loading=true 且最后一条是 ai)的 message 强制展开
   const [expandedAiMsgs, setExpandedAiMsgs] = useState<Set<number>>(new Set());
@@ -201,6 +203,8 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
 
     // 2. 注入 user prompt
     setChatHistory(prev => [...prev, { role: 'user', text: `【${palaceName}】深度解读` }]);
+    // 【Oracle 站同款】设置当前聚焦
+    setFocusPalace(palaceName);
 
     // 3. 调 LLM streaming, 强约束 5 段结构
     const userPrompt = `请分析用户命盘中的【${palaceName}】。\n\n以下是该宫位的真知识库参考资料 (请以这些为事实底座, 严格按指定结构输出, 不要拓展到其他宫位):\n\n${kbContext || '该宫位暂无参考资料, 请基于本宫主星/辅星/四化自主解读.'}\n\n输出结构 (必须严格遵守, 不可遗漏或调换顺序):\n\n【一句话结论】\n(1 句)\n\n【核心判断】\n(2-3 段, 每段 2-4 句, 仅谈 ${palaceName} 本身)\n\n【命盘依据】\n(3-5 条, 每条以 · 开头, 说明为何如此判断)\n\n【风险提醒】\n(1 段, 说明该宫的潜在问题或需注意事项)\n\n【行动建议】\n(2-3 条, 每条以数字编号, 给命主具体可行的建议)\n\n末尾输出:\n<<STAR>>星名1=庙/旺/平/陷,星名2=庙/旺/平/陷<</STAR>>\n<<SUGGEST>>与${palaceName}相关的追问1|追问2|追问3<</SUGGEST>>`;
@@ -326,6 +330,41 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%',fontFamily:'-apple-system,"PingFang SC",sans-serif'}}>
+      {/* 【当前聚焦】角标 - Oracle 站同款, 点宫位后顶部显示聚焦信息 */}
+      {focusPalace && (
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          padding:'8px 12px', marginBottom:10,
+          background:'linear-gradient(135deg, rgba(184,146,42,0.10), rgba(184,146,42,0.04))',
+          border:'1px solid rgba(184,146,42,0.25)',
+          borderRadius:10,
+          fontSize:12,
+        }}>
+          <span style={{display:'flex', alignItems:'center', gap:6, color:'#8A8A82', letterSpacing:'0.05em'}}>
+            <span style={{
+              width:6, height:6, borderRadius:'50%',
+              background:'#B8922A',
+              boxShadow:'0 0 6px rgba(184,146,42,0.6)',
+              animation:'dotPulse 1.2s ease-in-out infinite',
+            }}/>
+            当前聚焦
+          </span>
+          <span style={{display:'flex', alignItems:'center', gap:8}}>
+            <span style={{
+              color:'#3d2f10', fontSize:13, fontWeight:600, letterSpacing:'0.1em',
+            }}>{focusPalace}</span>
+            <button
+              onClick={() => setFocusPalace(null)}
+              title="清除聚焦"
+              style={{
+                border:'none', background:'transparent',
+                color:'#a89b7c', cursor:'pointer', fontSize:14, lineHeight:1,
+                padding:2,
+              }}>×</button>
+          </span>
+        </div>
+      )}
+
       {/* Topic Buttons */}
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}}>
         {TOPICS.map(t => (
