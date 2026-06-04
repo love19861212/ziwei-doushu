@@ -142,6 +142,11 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
   // 折叠状态: 跟踪每个 AI message 的展开/收起. 默认全部收起
   // streaming 中(loading=true 且最后一条是 ai)的 message 强制展开
   const [expandedAiMsgs, setExpandedAiMsgs] = useState<Set<number>>(new Set());
+  // 【Oracle 站同款】当前聚焦的 AI 消息 index, 点宫位时设置
+  // 该 index 对应消息自动展开, 其他全部折叠
+  const [currentFocusAiIndex, setCurrentFocusAiIndex] = useState<number | null>(null);
+  // AI 消息容器 ref (用于 scrollIntoView)
+  const aiMsgRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const toggleAiExpand = (i: number) => {
     setExpandedAiMsgs(prev => {
       const next = new Set(prev);
@@ -150,6 +155,18 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
       return next;
     });
   };
+
+  // 监听 currentFocusAiIndex 变化, 自动滚动到聚焦的 AI 消息
+  useEffect(() => {
+    if (currentFocusAiIndex !== null) {
+      const el = aiMsgRefs.current.get(currentFocusAiIndex);
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, [currentFocusAiIndex]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // 外部 promptSeed 变化时: 仿 Oracle 站 “点宫位 → 直接调真知识库”
@@ -203,7 +220,7 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
 
     // 2. 注入 user prompt
     setChatHistory(prev => [...prev, { role: 'user', text: `【${palaceName}】深度解读` }]);
-    // 【Oracle 站同款】设置当前聚焦
+    // 【Oracle 站同款】设置当前聚焦 (顶部固定框)
     setFocusPalace(palaceName);
 
     // 3. 调 LLM streaming, 强约束 5 段结构
@@ -212,7 +229,12 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
     setLoading(true);
     abortRef.current = new AbortController();
     // 先添加一个空的 ai message 用于流式填充
-    setChatHistory(prev => [...prev, { role: 'ai', text: '' }]);
+    // 【关键】设置 currentFocusAiIndex 为该消息的 index (添加后的 index = 旧长度+1)
+    setChatHistory(prev => {
+      const newIndex = prev.length + 1;  // +1 是因为下一行还会 push 一条 ai
+      setCurrentFocusAiIndex(newIndex);
+      return [...prev, { role: 'ai', text: '' }];
+    });
 
     try {
       const res = await fetch('/api/interpret', {
@@ -349,7 +371,6 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
           <span style={{
             width:8, height:8, borderRadius:'50%',
             background: focusPalace ? '#B8922A' : 'transparent',
-            border: focusPalace ? 'none' : '1px solid rgba(0,0,0,0.2)',
             boxShadow: focusPalace ? '0 0 8px rgba(184,146,42,0.7)' : 'none',
             animation: focusPalace ? 'dotPulse 1.2s ease-in-out infinite' : 'none',
             flexShrink:0,
@@ -411,19 +432,56 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
             : (() => {
               const isLastAi = i === chatHistory.length - 1;
               const isStreaming = loading && isLastAi;
-              const isExpanded = isStreaming || expandedAiMsgs.has(i);
+              // 【Oracle 站同款】点宫位后, currentFocusAiIndex 对应的那条 AI 解读展开, 其他折叠
+              const isCurrentFocus = currentFocusAiIndex === i;
+              const isExpanded = isStreaming || isCurrentFocus;
               const isLong = msg.text.length > 150;
+              // 从 user message 提取宫名 (e.g. '【父母宫】深度解读' → '父母宫')
+              const focusLabel = isCurrentFocus
+                ? (() => {
+                    const userMsg = chatHistory.slice(0, i).reverse().find(m => m.role === 'user');
+                    if (userMsg) {
+                      const m = userMsg.text.match(/【(.+?)】/);
+                      if (m) return m[1];
+                    }
+                    return focusPalace || '';
+                  })()
+                : '';
               return (
-                <div key={i} style={{
+                <div key={i} ref={(el) => { aiMsgRefs.current.set(i, el); }}
+                  data-ai-index={i}
+                  style={{
                   background:'#FFFFFF',
-                  border:'1px solid rgba(184,146,42,0.18)',
+                  border: isCurrentFocus
+                    ? '1.5px solid rgba(184,146,42,0.5)'
+                    : '1px solid rgba(184,146,42,0.18)',
                   borderRadius:12,
                   padding:'10px 12px',
                   marginBottom:8,
                   alignSelf:'flex-start',
                   maxWidth:'100%',
-                  boxShadow:'0 1px 2px rgba(0,0,0,0.03)',
+                  boxShadow: isCurrentFocus
+                    ? '0 4px 14px rgba(184,146,42,0.18)'
+                    : '0 1px 2px rgba(0,0,0,0.03)',
                 }}>
+                  {/* 【当前聚焦】标签 - Oracle 站同款: 只在 currentFocusAiIndex 对应消息上方显示 */}
+                  {isCurrentFocus && focusLabel && (
+                    <div style={{
+                      display:'flex', alignItems:'center', gap:6,
+                      marginBottom:8, paddingBottom:8,
+                      borderBottom:'1px dashed rgba(184,146,42,0.25)',
+                      fontSize:10, color:'#8A8A82', letterSpacing:'0.15em', fontWeight:600,
+                    }}>
+                      <span style={{
+                        width:7, height:7, borderRadius:'50%',
+                        background:'#B8922A',
+                        boxShadow:'0 0 6px rgba(184,146,42,0.7)',
+                        animation:'dotPulse 1.2s ease-in-out infinite',
+                      }}/>
+                      <span>当前聚焦</span>
+                      <span style={{color:'#B8922A', fontSize:12, fontWeight:700, letterSpacing:'0.2em'}}>{focusLabel}</span>
+                    </div>
+                  )}
                   <div style={{
                     display:'flex', alignItems:'center', justifyContent:'space-between',
                     marginBottom: isExpanded ? 8 : 0,
@@ -434,7 +492,16 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
                       命理解读
                     </span>
                     {isLong && !isStreaming && (
-                      <button onClick={() => toggleAiExpand(i)} style={{
+                      <button onClick={() => {
+                        if (!isCurrentFocus) {
+                          setCurrentFocusAiIndex(i);
+                          setFocusPalace(focusLabel || focusPalace);
+                        } else {
+                          // 取消当前聚焦 → 折叠
+                          setCurrentFocusAiIndex(null);
+                          setFocusPalace(null);
+                        }
+                      }} style={{
                         padding:'2px 8px', borderRadius:999,
                         fontSize: 10, fontWeight: 500,
                         border:'1px solid rgba(0,0,0,0.10)',
