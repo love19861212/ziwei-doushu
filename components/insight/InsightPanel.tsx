@@ -330,40 +330,53 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%',fontFamily:'-apple-system,"PingFang SC",sans-serif'}}>
-      {/* 【当前聚焦】角标 - Oracle 站同款, 点宫位后顶部显示聚焦信息 */}
-      {focusPalace && (
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between',
-          padding:'8px 12px', marginBottom:10,
-          background:'linear-gradient(135deg, rgba(184,146,42,0.10), rgba(184,146,42,0.04))',
-          border:'1px solid rgba(184,146,42,0.25)',
-          borderRadius:10,
-          fontSize:12,
-        }}>
-          <span style={{display:'flex', alignItems:'center', gap:6, color:'#8A8A82', letterSpacing:'0.05em'}}>
-            <span style={{
-              width:6, height:6, borderRadius:'50%',
-              background:'#B8922A',
-              boxShadow:'0 0 6px rgba(184,146,42,0.6)',
-              animation:'dotPulse 1.2s ease-in-out infinite',
-            }}/>
-            当前聚焦
+      {/* 【当前聚焦】角标 - Oracle 站同款, 永驻顶部不折叠, 不随 chat 滚动 */}
+      <div style={{
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'10px 14px', marginBottom:12,
+        background: focusPalace
+          ? 'linear-gradient(135deg, rgba(184,146,42,0.18), rgba(184,146,42,0.06))'
+          : 'rgba(0,0,0,0.03)',
+        border: focusPalace
+          ? '1.5px solid rgba(184,146,42,0.4)'
+          : '1px solid rgba(0,0,0,0.08)',
+        borderRadius:10,
+        fontSize:12,
+        flexShrink: 0,  // 永远不压缩
+        boxShadow: focusPalace ? '0 2px 8px rgba(184,146,42,0.10)' : 'none',
+      }}>
+        <span style={{display:'flex', alignItems:'center', gap:8, color:'#8A8A82', letterSpacing:'0.05em', fontSize:11, fontWeight:500}}>
+          <span style={{
+            width:8, height:8, borderRadius:'50%',
+            background: focusPalace ? '#B8922A' : 'transparent',
+            border: focusPalace ? 'none' : '1px solid rgba(0,0,0,0.2)',
+            boxShadow: focusPalace ? '0 0 8px rgba(184,146,42,0.7)' : 'none',
+            animation: focusPalace ? 'dotPulse 1.2s ease-in-out infinite' : 'none',
+            flexShrink:0,
+          }}/>
+          {focusPalace ? '当前聚焦' : '未选择宫位'}
+        </span>
+        <span style={{display:'flex', alignItems:'center', gap:10}}>
+          <span style={{
+            color: focusPalace ? '#3d2f10' : '#a89b7c',
+            fontSize: focusPalace ? 15 : 12,
+            fontWeight: focusPalace ? 700 : 400,
+            letterSpacing:'0.1em',
+          }}>
+            {focusPalace || '点击左侧宫位开始解读'}
           </span>
-          <span style={{display:'flex', alignItems:'center', gap:8}}>
-            <span style={{
-              color:'#3d2f10', fontSize:13, fontWeight:600, letterSpacing:'0.1em',
-            }}>{focusPalace}</span>
+          {focusPalace && (
             <button
               onClick={() => setFocusPalace(null)}
               title="清除聚焦"
               style={{
-                border:'none', background:'transparent',
-                color:'#a89b7c', cursor:'pointer', fontSize:14, lineHeight:1,
-                padding:2,
+                border:'none', background:'rgba(184,146,42,0.15)',
+                color:'#8A6914', cursor:'pointer', fontSize:12, lineHeight:1,
+                padding:'2px 6px', borderRadius:6,
               }}>×</button>
-          </span>
-        </div>
-      )}
+          )}
+        </span>
+      </div>
 
       {/* Topic Buttons */}
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:16}}>
