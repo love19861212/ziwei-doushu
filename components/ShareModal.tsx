@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart } from '@/lib/ziwei/types';
 import ShareCardCanvas, { captureShareCard, downloadDataURL } from './ShareCardCanvas';
@@ -17,6 +17,52 @@ interface ShareModalProps {
 export default function ShareModal({ open, onClose, shareUrl, chart, birth, highlight }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // 【命盘分享二维码】动态加载 qrcode-generator
+  const [qrDataURL, setQrDataURL] = useState<string | null>(null);
+  const qrLoadedRef = useRef(false);
+
+  // 动态加载 qrcode-generator UMD 脚本 (挂到 window.qrcode)
+  useEffect(() => {
+    if (qrLoadedRef.current) return;
+    if (typeof window === 'undefined') return;
+    if ((window as any).qrcode) {
+      qrLoadedRef.current = true;
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = '/lib/qrcode-generator.min.js';
+    s.onload = () => { qrLoadedRef.current = true; };
+    s.onerror = () => { console.error('qrcode-generator 加载失败'); };
+    document.head.appendChild(s);
+  }, []);
+
+  // shareUrl 变化时, 生成二维码 dataURL
+  useEffect(() => {
+    if (!open || !shareUrl) {
+      setQrDataURL(null);
+      return;
+    }
+    // 等 qrcode 库加载
+    const tryGen = () => {
+      const qrcode = (window as any).qrcode;
+      if (!qrcode) {
+        setTimeout(tryGen, 100);
+        return;
+      }
+      try {
+        // typeNumber=0 自动检测, errorCorrectionLevel='M' 适中容错
+        const qr = qrcode(0, 'M');
+        qr.addData(shareUrl);
+        qr.make();
+        // createDataURL(cellSize, margin) 返回 data:image/gif;base64,...
+        setQrDataURL(qr.createDataURL(8, 2));
+      } catch (e) {
+        console.error('二维码生成失败', e);
+        setQrDataURL(null);
+      }
+    };
+    tryGen();
+  }, [open, shareUrl]);
 
   const copyLink = async () => {
     try {
@@ -129,6 +175,44 @@ export default function ShareModal({ open, onClose, shareUrl, chart, birth, high
               >
                 {copied ? '✓ 已复制链接' : '🔗 复制命盘链接'}
               </button>
+
+              {/* 【命盘分享二维码】扫码看盘 */}
+              {qrDataURL && (
+                <div style={{
+                  display:'flex', alignItems:'center', gap:14,
+                  padding:'14px 16px',
+                  background:'linear-gradient(135deg, rgba(184,146,42,0.06), rgba(184,146,42,0.02))',
+                  border:'1.5px dashed rgba(184,146,42,0.4)',
+                  borderRadius:12,
+                }}>
+                  <div style={{
+                    flexShrink:0,
+                    width:104, height:104,
+                    background:'white',
+                    borderRadius:8,
+                    padding:6,
+                    boxShadow:'0 2px 6px rgba(0,0,0,0.08)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                  }}>
+                    <img src={qrDataURL} alt="命盘二维码" width={92} height={92} style={{display:'block'}} />
+                  </div>
+                  <div style={{flex:1, fontSize:12, color:'#5a4520', lineHeight:1.7}}>
+                    <div style={{fontWeight:600, color:'#8b6a14', marginBottom:4, letterSpacing:'0.1em', fontSize:13}}>
+                      📱 扫码看命盘
+                    </div>
+                    <div style={{color:'#7a6334', marginBottom:6}}>
+                      微信扫描二维码，对方可看本张命盘 (只读)
+                    </div>
+                    <div style={{
+                      fontSize:10, color:'#a89b7c', fontFamily:'ui-monospace, monospace',
+                      wordBreak:'break-all', lineHeight:1.4,
+                      maxHeight:36, overflow:'hidden',
+                    }}>
+                      {shareUrl.length > 60 ? shareUrl.slice(0, 60) + '…' : shareUrl}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div style={{
                 fontSize: '11px', color: '#a89b7c', lineHeight: 1.7,
