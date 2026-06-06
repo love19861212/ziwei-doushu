@@ -72,7 +72,27 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   const astrolabe = astro.bySolar(solarDate, hour, iztroGender, true, 'zh-CN');
 
   // ── 组装十二宫 ──
-  const palaces: Palace[] = astrolabe.palaces.map(p => {
+  // 2026-06-06 fix: 文墨天机 12 宫布宫是"命宫起逆时针"(倪海厦《天纪》体系);
+  // iztro 是"命宫起顺时针",两个软件地支→宫名映射相反,需要反转 iztro 的 12 宫顺序
+  // iztro 顺序: 命宫/父母/福德/田宅/官禄/仆役/迁移/疾厄/财帛/子女/夫妻/兄弟
+  // 文墨 顺序: 命宫/兄弟/夫妻/子女/财帛/疾厄/迁移/交友(仆役)/官禄/田宅/福德/父母
+  // 重新映射:文墨[i] 对应 iztro[12-i] (i>0),文墨[0]=iztro[0]
+  const WENMO_PALACE_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
+  const remapPalaceName = (iztroName: string): string => {
+    if (iztroName === '仆役') return '交友';
+    return iztroName;
+  };
+
+  // iztro 数组从寅起(不是命宫起!),命宫在 iztro[3] = 巳
+  // 文墨 12 宫从命宫起逆时针:文墨 i = 命宫(iztro[3]) 逆数 i 步
+  // 文墨 0(命) = iztro[3], 文墨 1(兄) = iztro[2], 文墨 2(夫) = iztro[1],
+  // 文墨 3(子) = iztro[0], 文墨 4(财) = iztro[11], 文墨 5(疾) = iztro[10],
+  // 文墨 6(迁) = iztro[9], 文墨 7(友/仆) = iztro[8], 文墨 8(官) = iztro[7],
+  // 文墨 9(田) = iztro[6], 文墨 10(福) = iztro[5], 文墨 11(父) = iztro[4]
+  const IZTRO_TO_WENMO_INDEX = [3, 2, 1, 0, 11, 10, 9, 8, 7, 6, 5, 4];
+
+  const palaces: Palace[] = IZTRO_TO_WENMO_INDEX.map(iztroIdx => {
+    const p = astrolabe.palaces[iztroIdx];
     const branch = BRANCHES.indexOf(p.earthlyBranch as string);
     const stem   = STEMS.indexOf(p.heavenlyStem as string);
 
@@ -100,10 +120,10 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
     return {
       branch:        branch >= 0 ? branch : 0,
       stem:          stem >= 0 ? stem : 0,
-      name:          p.name as string,
+      name:          remapPalaceName(p.name as string),
       stars:         allStars,
       daXianAge:     range ? [range[0], range[1]] as [number, number] : undefined,
-      isMingGong:    p.name === '命宫',
+      isMingGong:    p.name === '命宫' || iztroIdx === 3,  // 2026-06-06 fix: iztro 命宫不是固定 idx=0,用 name 判断
       isShenGong:    p.isBodyPalace ?? false,
       isCurrentDaXian: false,
     };
