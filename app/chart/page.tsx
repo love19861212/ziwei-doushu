@@ -67,6 +67,7 @@ export default function ChartPage() {
       ...formData,
     };
     setSavedForm(fullForm);
+    setFormKey(k => k + 1);  // 2026-06-06 fix: 强制 BirthForm 重新 mount 以读取新 initialData
     handleSubmit(formToBirthInfo(fullForm));
   }, [typeof window !== 'undefined' ? window.location.search : '']);  // 2026-06-06 fix: 监听 URL 变化,避免 stale 缓存
 
