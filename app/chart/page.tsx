@@ -68,7 +68,7 @@ export default function ChartPage() {
     };
     setSavedForm(fullForm);
     handleSubmit(formToBirthInfo(fullForm));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeof window !== 'undefined' ? window.location.search : '']);  // 2026-06-06 fix: 监听 URL 变化,避免 stale 缓存
 
   // ── 起盘 ──────────────────────────────────────────────────
   const handleSubmit = async (info: BirthInfo) => {
