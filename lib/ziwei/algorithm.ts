@@ -91,12 +91,33 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   // 文墨 9(田) = iztro[6], 文墨 10(福) = iztro[5], 文墨 11(父) = iztro[4]
   const IZTRO_TO_WENMO_INDEX = [3, 2, 1, 0, 11, 10, 9, 8, 7, 6, 5, 4];
 
+  // 2026-06-06 fix: 14 主星安星 文墨天机(倪海厦《天纪》)跟 iztro 库差 1 格
+  // iztro 口诀"紫微逆去天机星，隔一太阳武曲辰"被 iztro 库解释成"紫微-4=武曲"
+  // 倪海厦《天纪》解释成"武曲在辰"="紫微-3=武曲" (4 颗差 1 步:紫微/天机/太阳/武曲)
+  // 差异:太阳、武曲、七杀 3 颗主星 iztro 算的位置比倪海厦"前 1 格"
+  // 修复:把 iztro 算的 武曲 卯(3)→辰(4)、太阳 辰(4)→巳(5)、七杀 卯(3)→辰(4)
+  const NIHAI_XIA_STAR_REMAP: Record<string, number> = {
+    '太阳': 1,  // +1 格
+    '武曲': 1,  // +1 格
+    '七杀': 1,  // +1 格
+  };
+
   const palaces: Palace[] = IZTRO_TO_WENMO_INDEX.map(iztroIdx => {
     const p = astrolabe.palaces[iztroIdx];
     const branch = BRANCHES.indexOf(p.earthlyBranch as string);
     const stem   = STEMS.indexOf(p.heavenlyStem as string);
 
     // 合并所有星：主星 + 次星 + 杂耀
+    // 2026-06-06 fix: 14 主星太阳/武曲/七杀 位置按倪海厦《天纪》后移 1 格
+    const remappedMajorStars = (p.majorStars ?? []).map(s => {
+      const offset = NIHAI_XIA_STAR_REMAP[s.name as string];
+      if (!offset) return s;
+      // 改 star 的 palace — 但 iztro 库没给 palace 字段,改为跳过(让下一宫补上)
+      // 简化:本宫移除此星,在 顺时针 offset 宫 添加
+      return s;  // 暂不处理,见下方 post-processing
+    });
+    void remappedMajorStars;  // 暂留
+
     const allStars: Star[] = [
       ...(p.majorStars ?? []).map(s => ({
         name:       s.name as string,
@@ -153,6 +174,24 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
       }
     }
   });
+
+  // 2026-06-06 fix: 14 主星太阳/武曲/七杀 按倪海厦《天纪》后移 1 格
+  // iztro 库 武曲/太阳/七杀 位置比倪海厦“前 1 格”
+  // 修复:把 武曲 从原宫拆走,逆数 1 步宫添加; 太阳/七杀 同理
+  for (const starName of Object.keys(NIHAI_XIA_STAR_REMAP)) {
+    const offset = NIHAI_XIA_STAR_REMAP[starName];
+    // 找原位置
+    const origPalace = palaces.find(p => p.stars.some(s => s.name === starName && s.type === 'major'));
+    if (!origPalace) continue;
+    // 目标位置(文墨 12 宫逆时针 1 步 = branch + 1 mod 12)
+    const targetBranch = (origPalace.branch + offset) % 12;
+    const targetPalace = palaces.find(p => p.branch === targetBranch);
+    if (!targetPalace || targetPalace === origPalace) continue;
+    // 转移主星
+    const star = origPalace.stars.find(s => s.name === starName && s.type === 'major')!;
+    origPalace.stars = origPalace.stars.filter(s => !(s.name === starName && s.type === 'major'));
+    targetPalace.stars.push(star);
+  }
 
   // ── 关键宫支 ──
   const mingGongBranch = BRANCHES.indexOf(astrolabe.earthlyBranchOfSoulPalace as string);
