@@ -50,7 +50,7 @@ function h12to24(idx: number): number { return [23,1,3,5,7,9,11,13,15,17,19,21][
 /** 根据北京时间 + 经度计算真太阳时时辰支 (0-11) */
 function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number): number {
   const clockMins = clockHour * 60 + clockMinute;
-  const offset = (longitude - 120) * 4;
+  const offset = (120 - longitude) * 4;  // 2026-06-06 fix: 反符号
   const solar = ((clockMins + offset) % 1440 + 1440) % 1440;
   if (solar >= 1380 || solar < 60) return 0;
   return Math.floor((solar - 60) / 120) + 1;
@@ -113,7 +113,7 @@ _solarDay: initialData?._solarDay ?? '',
     );
   }, [form.clockHour, form.clockMinute, form.longitude, form.unknownTime]);
 
-  const offsetMin = Math.round((form.longitude - 120) * 4);
+  const offsetMin = Math.round((120 - form.longitude) * 4);  // 2026-06-06 fix: 反符号
   const shichenInfo = SHICHEN[branch];
 
   // ─── 校验逻辑 ───────────────────────────────────────────

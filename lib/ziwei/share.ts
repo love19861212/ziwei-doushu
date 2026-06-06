@@ -4,7 +4,7 @@ import type { BirthInfo } from './types';
 /** 根据北京时间 + 经度计算真太阳时时辰支 (0-11) */
 export function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number): number {
   const clockMins = clockHour * 60 + clockMinute;
-  const offset = (longitude - 120) * 4;
+  const offset = (120 - longitude) * 4;  // 2026-06-06 fix: 反符号
   const solar = ((clockMins + offset) % 1440 + 1440) % 1440;
   if (solar >= 1380 || solar < 60) return 0;
   return Math.floor((solar - 60) / 120) + 1;
@@ -134,4 +134,21 @@ export function formToSearchParams(form: BirthFormState): URLSearchParams {
   if (form.longitude && form.longitude !== 120) p.set('lo', String(form.longitude));
   p.set('g', form.gender === 'male' ? 'm' : 'f');
   return p;
+}
+
+/** 返回真太阳时 24 小时制下的"钟表显示"（含 EoT 近似）
+ *  - 用作 UI 提示 / 调试 / 给文墨天机对齐
+ *  - 暂未接入排盘（iztro 用 timeIndex 0-12）
+ */
+export function calcTrueSolarHM(clockHour: number, clockMinute: number, longitude: number, dayOfYear: number = 11): string {
+  const clockMins = clockHour * 60 + clockMinute;
+  const offset = (120 - longitude) * 4;
+  // EoT 近似公式（年度）：9.87 sin(2B) - 7.53 cos(B) - 1.5 sin(B)
+  const B = (2 * Math.PI / 365) * (dayOfYear - 81);
+  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  const total = clockMins + offset + eot;
+  const solar = ((total % 1440) + 1440) % 1440;
+  const h = Math.floor(solar / 60);
+  const m = Math.round(solar % 60);
+  return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
 }

@@ -154,6 +154,10 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
       endAge:      p.daXianAge![1],
       palaceBranch: p.branch,
       palaceName:   p.name,
+      // 宫干自化已下线（倪师不主张飞星派宫干自化论）
+      // 但大限宫干本身保留用于 UI 显示，2026-06-06 修复
+      stemIndex:   p.stem,
+      stemName:    STEMS[p.stem],
     }));
 
   // 宫干自化已下线（倪师不主张飞星派宫干自化论）
