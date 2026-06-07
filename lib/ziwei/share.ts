@@ -10,6 +10,18 @@ export function calcTrueSolarBranch(clockHour: number, clockMinute: number, long
   return Math.floor((solar - 60) / 120) + 1;
 }
 
+/** 2026-06-07: clock hour (0-23) → iztro timeIndex (0-12, 等于地支索引)
+ *   倪海夏《天纪》体系(文墨天机)直接用钟表时辰,不校准真太阳时
+ *   0=子时(0-1), 1=丑时(1-3), 2=寅时(3-5), 3=卯时(5-7), 4=辰时(7-9),
+ *   5=巳时(9-11), 6=午时(11-13), 7=未时(13-15), 8=申时(15-17),
+ *   9=酉时(17-19), 10=戌时(19-21), 11=亥时(21-23), 12=晚子时(23-0)
+ */
+export function clockHourToTimeIndex(clockHour: number): number {
+  if (clockHour === 0) return 0;     // 00:00-01:00 = 子时
+  if (clockHour === 23) return 12;   // 23:00-00:00 = 晚子时
+  return Math.floor((clockHour + 1) / 2);
+}
+
 /** 同步版本（保留给非农历场景如 chart/page.tsx） */
 export function formToBirthInfo(form: BirthFormState): BirthInfo {
   let y = parseInt(form.year) || 0;
@@ -26,9 +38,15 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     }
   }
 
+  // 2026-06-07 fix: 倪海夏《天纪》体系(文墨天机)直接用钟表时辰 + clockMinute,不校准真太阳时
+  //   之前用 calcTrueSolarBranch (钟表 + 经度偏移) 算的 时支 跟文墨天机不一样!
+  //   例: 用户填 16:00 + 104.40° + 1987-01-11
+  //     之前: calcTrueSolarBranch(16, 0, 104.40) = 9 (酉时,真太阳时 17:02) → iztro 算命宫辰(4) + 火六局
+  //     现在: clockHourToTimeIndex(16) = 8 (申时, 15-17) → iztro 算命宫巳(5) + 水二局 ✓
+  //   calcTrueSolarHM 函数仍保留,供 UI 提示用(报告/分享)
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(parseInt(form.clockHour) || 0, parseInt(form.clockMinute) || 0, form.longitude);
+    : clockHourToTimeIndex(parseInt(form.clockHour) || 0);
 
   return {
     year: y, month: m, day: d,
