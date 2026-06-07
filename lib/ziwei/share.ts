@@ -131,7 +131,7 @@ export function searchParamsToForm(params: URLSearchParams): Partial<BirthFormSt
     month,
     day,
     unknownTime: params.get('u') === '1',
-    clockHour: params.get('h') || '8',
+    clockHour: params.get('h') || '',
     clockMinute: params.get('mi') || '0',
     province: params.get('p') || '',
     city: params.get('c') || '',
