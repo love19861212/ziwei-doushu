@@ -38,7 +38,7 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
     if (!fd?.year) return null;
     return {
       name: '', year: '', month: '', day: '',
-      clockHour: '8', clockMinute: '0', unknownTime: false,
+      clockHour: '', clockMinute: '0', unknownTime: false,
       province: '', city: '', longitude: 120, gender: 'male',
       dateMode: 'solar', lunarYear: '', lunarMonth: '', lunarDay: '',
       isLeapMonth: false, timeMode: '24h',
