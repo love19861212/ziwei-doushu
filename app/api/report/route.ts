@@ -71,10 +71,16 @@ function buildReport(chart: any, isPro: boolean): string {
   sections.push(`# 紫微斗数全盘报告`);
   sections.push(``);
   sections.push(`**姓名**: ${chart.birthInfo?.name || '未填'}`);
-  sections.push(`**出生**: ${chart.birthInfo?.year}年${chart.birthInfo?.month}月${chart.birthInfo?.day}日 ${chart.birthInfo?.hour}时${chart.birthInfo?.minute || 0}分`);
+  // 2026-06-07 fix: 显示原始钟表时间(16:30) + 真太阳时(17:32) + 时支(酉)
+  const clockHM = chart.birthInfo?.clockHour !== undefined
+    ? `${String(chart.birthInfo.clockHour).padStart(2,'0')}:${String(chart.birthInfo.minute ?? 0).padStart(2,'0')}`
+    : '';
+  const branchCN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][chart.birthInfo?.hour ?? 0];
+  const clockText = clockHM ? `${clockHM}（${branchCN}时）` : `${branchCN}时`;
+  sections.push(`**出生**: ${chart.birthInfo?.year}年${chart.birthInfo?.month}月${chart.birthInfo?.day}日 ${clockText}`);
   sections.push(`**性别**: ${chart.birthInfo?.gender === 'male' ? '男' : '女'}`);
   if (chart.birthInfo?.city) sections.push(`**出生地**: ${chart.birthInfo.city}`);
-  sections.push(`**真太阳时**: ${chart.solarTime || '未校准'}`);
+  sections.push(`**真太阳时**: ${chart.birthInfo?.trueSolarHM || chart.solarTime || '未校准'}`);
   sections.push(`**命宫地支**: ${BRANCHES[chart.mingGongBranch] || '?'}`);
   sections.push(``);
 
