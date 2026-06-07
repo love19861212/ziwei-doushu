@@ -62,17 +62,12 @@ function parseWuxingJu(name: string): number {
   return 3;
 }
 
-// ─── 主函数:生成命盘 ────────────────────────────────────────────
+// ─── 主函数：生成命盘 ────────────────────────────────────────────
 
-// 2026-06-07 fix: clock hour (0-23) → iztro timeIndex (0-12)
-//   0=子时(0-1), 1=丑时(1-3), 2=寅时(3-5), 3=卯时(5-7), 4=辰时(7-9),
-//   5=巳时(9-11), 6=午时(11-13), 7=未时(13-15), 8=申时(15-17),
-//   9=酉时(17-19), 10=戌时(19-21), 11=亥时(21-23), 12=晚子时(23-0)
-function clockHourToTimeIndex(clockHour: number): number {
-  if (clockHour === 0) return 0;     // 00:00-01:00 = 子时
-  if (clockHour === 23) return 12;   // 23:00-00:00 = 晚子时
-  return Math.floor((clockHour + 1) / 2);
-}
+// 2026-06-07: 删除之前的 clockHourToTimeIndex 错误函数
+// BirthInfo.hour 本身就是 时辰地支索引 0-11(由 formToBirthInfo.calcTrueSolarBranch 计算)
+// iztro bySolar 第 2 参数期望的就是 0-11(0=子, 1=丑, ..., 11=亥)
+// 直接传 hour 即可,不要再转换!
 
 export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   const { year, month, day, hour, gender } = birthInfo;
@@ -80,12 +75,12 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   // 调用 iztro 排盘
   const solarDate = `${year}-${month}-${day}`;
   const iztroGender = gender === 'male' ? '男' : '女';
-  // 2026-06-07 fix: iztro bySolar 第二个参数是 timeIndex(0-12),不是 clock hour(0-23)!
-  //   timeIndex 0=子时(0-1), 1=丑时(1-3), 2=寅时(3-5), ..., 4=辰时(7-9), 8=申时(15-17), 12=晚子时(23-0)
-  //   之前直接传 hour=8,iztro 把它当 timeIndex=8(申时)算,命宫 巳(5) - 错!
-  //   正确: clock 8(辰时) → timeIndex 4 → 命宫 酉(9)
-  const timeIndex = clockHourToTimeIndex(hour);
-  const astrolabe = astro.bySolar(solarDate, timeIndex, iztroGender, true, 'zh-CN');
+  // 2026-06-07 fix: BirthInfo.hour 已经是 时辰地支索引(0-11) - 跟 iztro timeIndex 一致!
+  //   formToBirthInfo 调 calcTrueSolarBranch 算真太阳时 → 返回地支索引 0-11
+  //   iztro bySolar 第 2 参数: 0=子时 / 1=丑时 / 2=寅时 / ... / 9=酉时 / 10=戌时 / 11=亥时
+  //   之前 bug: 调 clockHourToTimeIndex(hour) 把地支索引当 clock hour,差 1-2 格
+  //   正确: 直接传 hour 给 iztro
+  const astrolabe = astro.bySolar(solarDate, hour, iztroGender, true, 'zh-CN');
 
   // ── 组装十二宫 ──
   // 2026-06-07 fix: 撤销之前的"反转 iztro 数组"修复
