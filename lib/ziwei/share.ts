@@ -100,7 +100,7 @@ export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthI
 
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(parseInt(form.clockHour) || 0, parseInt(form.clockMinute) || 0, form.longitude);
+    : clockHourToTimeIndex(parseInt(form.clockHour) || 0);
 
   return {
     year: y, month: m, day: d,
