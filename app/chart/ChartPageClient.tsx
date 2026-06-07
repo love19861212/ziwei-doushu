@@ -78,7 +78,7 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
     //   8:00 兜底,公历+24h 模式,跟文墨天机一致
     const fullForm: BirthFormState = {
       name: '', year: '', month: '', day: '',
-      clockHour: '8', clockMinute: '0', unknownTime: false,
+      clockHour: '', clockMinute: '0', unknownTime: false,
       province: '', city: '', longitude: 120, gender: 'male',
       dateMode: 'solar', lunarYear: '', lunarMonth: '', lunarDay: '',
       isLeapMonth: false, timeMode: '24h',
