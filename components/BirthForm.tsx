@@ -196,6 +196,8 @@ day: !form.day ? '请选择日期'
         sy=data.solar.year; sm=data.solar.month; sd=data.solar.day;
       } catch { alert('农历转公历失败'); return; }
     } else if (hasError) { return; }
+    // 2026-06-07 fix: 未选时间不允许起盘
+    if (!form.unknownTime && !form.clockHour) { alert('请选择出生时辰'); return; }
     let finalHour=branch;
     if (form.timeMode==='12h' && !form.unknownTime) finalHour=parseInt(form.clockHour)||0;
     onFormSave?.({...form});

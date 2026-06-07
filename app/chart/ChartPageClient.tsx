@@ -76,7 +76,7 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
     if (!formData?.year) return;
     const fullForm: BirthFormState = {
       name: '', year: '', month: '', day: '',
-      clockHour: '8', clockMinute: '0', unknownTime: false,
+      clockHour: '', clockMinute: '0', unknownTime: false,
       province: '', city: '', longitude: 120, gender: 'male',
       dateMode: 'solar', lunarYear: '', lunarMonth: '', lunarDay: '',
       isLeapMonth: false, timeMode: '24h',
@@ -85,7 +85,10 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
     };
     setSavedForm(fullForm);
     setFormKey(k => k + 1);  // 2026-06-06 fix: 强制 BirthForm 重新 mount 以读取新 initialData
-    handleSubmit(formToBirthInfo(fullForm));
+    // 2026-06-07 fix: 只有提供了时间 (h 参数) 才自动起盘,否则只填充表单让用户选时间
+    if (formData.clockHour) {
+      handleSubmit(formToBirthInfo(fullForm));
+    }
   }, [typeof window !== 'undefined' ? window.location.search : '']);  // 2026-06-06 fix: 监听 URL 变化,避免 stale 缓存
 
   // ── 起盘 ──────────────────────────────────────────────────
