@@ -1,5 +1,5 @@
 /**
- * 紫微斗数排盘算法 — 基于 iztro 开源库
+ * 紫微斗数排盘算法 - 基于 iztro 开源库
  * https://github.com/SylarLong/iztro
  */
 
@@ -7,10 +7,10 @@ import { astro } from 'iztro';
 import { Solar } from 'lunar-javascript';
 import type { BirthInfo, LunarInfo, Star, Palace, DaXian, DaXianSiHua, ZiweiChart } from './types';
 import { BRANCHES, STEMS } from './constants';
-// 飞星派工具仅供导出，不再在排盘时调用（倪师《天纪 03》：四化星永远固定不动）
+// 飞星派工具仅供导出,不再在排盘时调用(倪师《天纪 03》:四化星永远固定不动)
 // import { detectSelfSihua, getSiHuaByStem } from './sihua';
 
-// ─── 农历信息（兼容保留）────────────────────────────────────────
+// ─── 农历信息(兼容保留)────────────────────────────────────────
 export function getLunarInfo(year: number, month: number, day: number): LunarInfo {
   const solar = Solar.fromYmd(year, month, day);
   const lunar = solar.getLunar();
@@ -62,62 +62,56 @@ function parseWuxingJu(name: string): number {
   return 3;
 }
 
-// ─── 主函数：生成命盘 ────────────────────────────────────────────
+// ─── 主函数:生成命盘 ────────────────────────────────────────────
+
+// 2026-06-07 fix: clock hour (0-23) → iztro timeIndex (0-12)
+//   0=子时(0-1), 1=丑时(1-3), 2=寅时(3-5), 3=卯时(5-7), 4=辰时(7-9),
+//   5=巳时(9-11), 6=午时(11-13), 7=未时(13-15), 8=申时(15-17),
+//   9=酉时(17-19), 10=戌时(19-21), 11=亥时(21-23), 12=晚子时(23-0)
+function clockHourToTimeIndex(clockHour: number): number {
+  if (clockHour === 0) return 0;     // 00:00-01:00 = 子时
+  if (clockHour === 23) return 12;   // 23:00-00:00 = 晚子时
+  return Math.floor((clockHour + 1) / 2);
+}
+
 export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   const { year, month, day, hour, gender } = birthInfo;
 
   // 调用 iztro 排盘
   const solarDate = `${year}-${month}-${day}`;
   const iztroGender = gender === 'male' ? '男' : '女';
-  const astrolabe = astro.bySolar(solarDate, hour, iztroGender, true, 'zh-CN');
+  // 2026-06-07 fix: iztro bySolar 第二个参数是 timeIndex(0-12),不是 clock hour(0-23)!
+  //   timeIndex 0=子时(0-1), 1=丑时(1-3), 2=寅时(3-5), ..., 4=辰时(7-9), 8=申时(15-17), 12=晚子时(23-0)
+  //   之前直接传 hour=8,iztro 把它当 timeIndex=8(申时)算,命宫 巳(5) - 错!
+  //   正确: clock 8(辰时) → timeIndex 4 → 命宫 酉(9)
+  const timeIndex = clockHourToTimeIndex(hour);
+  const astrolabe = astro.bySolar(solarDate, timeIndex, iztroGender, true, 'zh-CN');
 
   // ── 组装十二宫 ──
-  // 2026-06-06 fix: 文墨天机 12 宫布宫是"命宫起逆时针"(倪海厦《天纪》体系);
-  // iztro 是"命宫起顺时针",两个软件地支→宫名映射相反,需要反转 iztro 的 12 宫顺序
-  // iztro 顺序: 命宫/父母/福德/田宅/官禄/仆役/迁移/疾厄/财帛/子女/夫妻/兄弟
-  // 文墨 顺序: 命宫/兄弟/夫妻/子女/财帛/疾厄/迁移/交友(仆役)/官禄/田宅/福德/父母
-  // 重新映射:文墨[i] 对应 iztro[12-i] (i>0),文墨[0]=iztro[0]
-  const WENMO_PALACE_ORDER = ['命宫', '兄弟', '夫妻', '子女', '财帛', '疾厄', '迁移', '交友', '官禄', '田宅', '福德', '父母'];
-  const remapPalaceName = (iztroName: string): string => {
-    if (iztroName === '仆役') return '交友';
-    return iztroName;
-  };
+  // 2026-06-07 fix: 撤销之前的"反转 iztro 数组"修复
+  // iztro 库本身用的就是"倪海夏《天纪》命宫起逆时针 12 宫",不需要反转!
+  // 之前 commit 7d68fbe 的 IZTRO_TO_WENMO_INDEX = [3,2,1,0,11,10,...] 是错的!
+  // 实测 h=8 timeIndex 4 命宫酉(9): iztro 输出 12 宫顺序 = 文墨天机顺序
+  //   iztro[0]=寅(仆役) / iztro[1]=卯(迁移) / iztro[2]=辰(疾厄) / iztro[3]=巳(财帛)
+  //   iztro[4]=午(子女) / iztro[5]=未(夫妻) / iztro[6]=申(兄弟) / iztro[7]=酉(命宫)
+  //   iztro[8]=戌(父母) / iztro[9]=亥(福德) / iztro[10]=子(田宅) / iztro[11]=丑(官禄)
+  // 文墨天机按"命宫起逆时针":命9(酉)→兄8(申)→夫7(未)→子6(午)→财5(巳)→疾4(辰)→迁3(卯)
+  //   →友2(寅)→官1(丑)→田0(子)→福11(亥)→父10(戌) - 100% 一致!
 
-  // iztro 数组从寅起(不是命宫起!),命宫在 iztro[3] = 巳
-  // 文墨 12 宫从命宫起逆时针:文墨 i = 命宫(iztro[3]) 逆数 i 步
-  // 文墨 0(命) = iztro[3], 文墨 1(兄) = iztro[2], 文墨 2(夫) = iztro[1],
-  // 文墨 3(子) = iztro[0], 文墨 4(财) = iztro[11], 文墨 5(疾) = iztro[10],
-  // 文墨 6(迁) = iztro[9], 文墨 7(友/仆) = iztro[8], 文墨 8(官) = iztro[7],
-  // 文墨 9(田) = iztro[6], 文墨 10(福) = iztro[5], 文墨 11(父) = iztro[4]
-  const IZTRO_TO_WENMO_INDEX = [3, 2, 1, 0, 11, 10, 9, 8, 7, 6, 5, 4];
+  // 2026-06-07 fix: 撤销之前的 14 主星后移 post-processing(错误修复)
+  // 之前 commit 491c7ec 把太阳/武曲/七杀 后移 1 格是错的!
+  // 实测 1987-01-11 h=8 命宫酉(9) 五行局火六局:
+  //   iztro 12 宫跟用户报告 100% 一致(无需 post-processing)
+  //   紫微 3(卯迁移)/ 贪狼 3(卯迁移)/ 天机 2(寅仆役)/ 太阴 2(寅仆役)
+  //   巨门 4(辰疾厄)/ 天相 5(巳财帛)/ 天梁 6(午子女)
+  //   廉贞 7(未夫妻)/ 七杀 7(未夫妻)/ 天同 10(戌父母)
+  //   武曲 11(亥福德)/ 破军 11(亥福德)/ 太阳 0(子田宅)/ 天府 1(丑官禄)
 
-  // 2026-06-06 fix: 14 主星安星 文墨天机(倪海厦《天纪》)跟 iztro 库差 1 格
-  // iztro 口诀"紫微逆去天机星，隔一太阳武曲辰"被 iztro 库解释成"紫微-4=武曲"
-  // 倪海厦《天纪》解释成"武曲在辰"="紫微-3=武曲" (4 颗差 1 步:紫微/天机/太阳/武曲)
-  // 差异:太阳、武曲、七杀 3 颗主星 iztro 算的位置比倪海厦"前 1 格"
-  // 修复:把 iztro 算的 武曲 卯(3)→辰(4)、太阳 辰(4)→巳(5)、七杀 卯(3)→辰(4)
-  const NIHAI_XIA_STAR_REMAP: Record<string, number> = {
-    '太阳': 1,  // +1 格
-    '武曲': 1,  // +1 格
-    '七杀': 1,  // +1 格
-  };
-
-  const palaces: Palace[] = IZTRO_TO_WENMO_INDEX.map(iztroIdx => {
-    const p = astrolabe.palaces[iztroIdx];
+  const palaces: Palace[] = astrolabe.palaces.map((p, i) => {
     const branch = BRANCHES.indexOf(p.earthlyBranch as string);
     const stem   = STEMS.indexOf(p.heavenlyStem as string);
 
-    // 合并所有星：主星 + 次星 + 杂耀
-    // 2026-06-06 fix: 14 主星太阳/武曲/七杀 位置按倪海厦《天纪》后移 1 格
-    const remappedMajorStars = (p.majorStars ?? []).map(s => {
-      const offset = NIHAI_XIA_STAR_REMAP[s.name as string];
-      if (!offset) return s;
-      // 改 star 的 palace — 但 iztro 库没给 palace 字段,改为跳过(让下一宫补上)
-      // 简化:本宫移除此星,在 顺时针 offset 宫 添加
-      return s;  // 暂不处理,见下方 post-processing
-    });
-    void remappedMajorStars;  // 暂留
-
+    // 合并所有星:主星 + 次星 + 杂耀
     const allStars: Star[] = [
       ...(p.majorStars ?? []).map(s => ({
         name:       s.name as string,
@@ -141,10 +135,10 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
     return {
       branch:        branch >= 0 ? branch : 0,
       stem:          stem >= 0 ? stem : 0,
-      name:          remapPalaceName(p.name as string),
+      name:          (p.name === '仆役' ? '交友' : p.name as string),  // 2026-06-07: 倪海夏《天纪》用'交友',iztro用'仆役'
       stars:         allStars,
       daXianAge:     range ? [range[0], range[1]] as [number, number] : undefined,
-      isMingGong:    p.name === '命宫' || iztroIdx === 3,  // 2026-06-06 fix: iztro 命宫不是固定 idx=0,用 name 判断
+      isMingGong:    p.name === '命宫',  // 2026-06-07: iztro 库的 p.name 已经是 '命宫'/'父母'等中文,直接用
       isShenGong:    p.isBodyPalace ?? false,
       isCurrentDaXian: false,
     };
@@ -160,7 +154,7 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
     }
   });
 
-  // ── 借对宫结构化字段（codex P0：避免文案层从自然语言反查借宫信息）──
+  // ── 借对宫结构化字段(codex P0:避免文案层从自然语言反查借宫信息)──
   palaces.forEach(p => {
     p.oppositeBranch = (p.branch + 6) % 12;
     const mainStars = p.stars.filter(s => s.type === 'major');
@@ -175,24 +169,6 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
     }
   });
 
-  // 2026-06-06 fix: 14 主星太阳/武曲/七杀 按倪海厦《天纪》后移 1 格
-  // iztro 库 武曲/太阳/七杀 位置比倪海厦“前 1 格”
-  // 修复:把 武曲 从原宫拆走,逆数 1 步宫添加; 太阳/七杀 同理
-  for (const starName of Object.keys(NIHAI_XIA_STAR_REMAP)) {
-    const offset = NIHAI_XIA_STAR_REMAP[starName];
-    // 找原位置
-    const origPalace = palaces.find(p => p.stars.some(s => s.name === starName && s.type === 'major'));
-    if (!origPalace) continue;
-    // 目标位置(文墨 12 宫逆时针 1 步 = branch + 1 mod 12)
-    const targetBranch = (origPalace.branch + offset) % 12;
-    const targetPalace = palaces.find(p => p.branch === targetBranch);
-    if (!targetPalace || targetPalace === origPalace) continue;
-    // 转移主星
-    const star = origPalace.stars.find(s => s.name === starName && s.type === 'major')!;
-    origPalace.stars = origPalace.stars.filter(s => !(s.name === starName && s.type === 'major'));
-    targetPalace.stars.push(star);
-  }
-
   // ── 关键宫支 ──
   const mingGongBranch = BRANCHES.indexOf(astrolabe.earthlyBranchOfSoulPalace as string);
   const shenGongBranch = BRANCHES.indexOf(astrolabe.earthlyBranchOfBodyPalace as string);
@@ -203,8 +179,8 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   const ziweiPalace = palaces.find(p => p.stars.some(s => s.name === '紫微' && s.type === 'major'));
   const ziweiPos    = ziweiPalace?.branch ?? 0;
 
-  // ── 大限数组（倪师《天纪》正统：四化永远固定，大限只看宫位移动）──
-  // 不再生成 daXians[].siHua / stemIndex / stemName（飞星派字段已下线）
+  // ── 大限数组(倪师《天纪》正统:四化永远固定,大限只看宫位移动)──
+  // 不再生成 daXians[].siHua / stemIndex / stemName(飞星派字段已下线)
   const daXians: DaXian[] = palaces
     .filter(p => p.daXianAge)
     .sort((a, b) => a.daXianAge![0] - b.daXianAge![0])
@@ -213,13 +189,13 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
       endAge:      p.daXianAge![1],
       palaceBranch: p.branch,
       palaceName:   p.name,
-      // 宫干自化已下线（倪师不主张飞星派宫干自化论）
-      // 但大限宫干本身保留用于 UI 显示，2026-06-06 修复
+      // 宫干自化已下线(倪师不主张飞星派宫干自化论)
+      // 但大限宫干本身保留用于 UI 显示,2026-06-06 修复
       stemIndex:   p.stem,
       stemName:    STEMS[p.stem],
     }));
 
-  // 宫干自化已下线（倪师不主张飞星派宫干自化论）
+  // 宫干自化已下线(倪师不主张飞星派宫干自化论)
 
   const currentDaXianIndex = daXians.findIndex(
     dx => currentAge >= dx.startAge && currentAge <= dx.endAge,
