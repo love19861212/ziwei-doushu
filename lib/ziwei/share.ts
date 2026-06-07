@@ -51,11 +51,14 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
   return {
     year: y, month: m, day: d,
     hour,
+    minute:     form.unknownTime ? 0 : (parseInt(form.clockMinute) || 0),
+    clockHour:  form.unknownTime ? 0 : (parseInt(form.clockHour) || 0),
     gender: form.gender,
     name: form.name || undefined,
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
+    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(parseInt(form.clockHour) || 0, parseInt(form.clockMinute) || 0, form.longitude),
   };
 }
 

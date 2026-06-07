@@ -56,6 +56,12 @@ function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: 
   return Math.floor((solar - 60) / 120) + 1;
 }
 
+/** 钟表小时 → 时辰地支索引 (0-12) — 倪海夏《天纪》体系(文墨天机)直接用钟表时辰 */
+function clockHourToTimeIndex(clockHour: number): number {
+  if (clockHour === 23 || clockHour === 0) return 0;  // 子时 (23:00-01:00)
+  return Math.floor((clockHour + 1) / 2);
+}
+
 /** 检查日期是否合法 */
 function isValidDate(y: number, m: number, d: number): boolean {
   if (!y || !m || !d) return false;
@@ -106,12 +112,9 @@ _solarDay: initialData?._solarDay ?? '',
 
   const branch = useMemo(() => {
     if (form.unknownTime) return 0;
-    return calcTrueSolarBranch(
-      parseInt(form.clockHour) || 0,
-      parseInt(form.clockMinute) || 0,
-      form.longitude,
-    );
-  }, [form.clockHour, form.clockMinute, form.longitude, form.unknownTime]);
+    // 2026-06-07 fix: 倪海夏《天纪》体系(文墨天机)直接用钟表时辰,不校准真太阳时
+    return clockHourToTimeIndex(parseInt(form.clockHour) || 0);
+  }, [form.clockHour, form.unknownTime]);
 
   const offsetMin = Math.round((120 - form.longitude) * 4);  // 2026-06-06 fix: 反符号
   const shichenInfo = SHICHEN[branch];
@@ -408,7 +411,7 @@ day: !form.day ? '请选择日期'
                 lineHeight: 1.55
               }}
             >
-              ⚠ <strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>强烈建议填写出生地</strong>：紫微斗数严格按真太阳时排盘，未填写时按北京时间，<strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>重庆/成都/新疆等远离东经 120° 的地方，时辰可能差一格，整张盘都会不一样</strong>。
+              ⚠ <strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>倪海夏《天纪》体系</strong>：本系统采用倪海夏《天纪》(文墨天机)体系,直接按<strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>钟表时辰</strong>排盘,不校准真太阳时。重庆/成都等地区按本地钟表时间填即可。
             </motion.p>
           )}
         </AnimatePresence>
