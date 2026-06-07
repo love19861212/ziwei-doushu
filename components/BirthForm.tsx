@@ -40,6 +40,14 @@ interface BirthFormProps {
 
 const SHICHEN_NAMES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 
+// 农历月名(传统称呼): 11月=冬月, 12月=腊月, 其余+月
+const LUNAR_MONTH_NAMES = ['正', '二', '三', '四', '五', '六', '七', '八', '九', '十', '冬', '腊'];
+const lunarMonthName = (m: string): string => {
+  const i = parseInt(m) - 1;
+  if (i < 0 || i > 11) return m;
+  return LUNAR_MONTH_NAMES[i] + '月';
+};
+
 /** 24小时→12时辰（返回0-11，子时23:30+或00:30-） */
 function h24to12(h: number, m: number): number {
   if ((h === 23 && m >= 30) || (h === 0 && m < 30)) return 0;
@@ -152,8 +160,9 @@ day: !form.day ? '请选择日期'
   const summaryText = showSummary
     ? [
         isLunar
-          ? `${form.lunarYear}年${form.lunarMonth}月${form.lunarDay}日`
+          ? `${form.lunarYear}年${lunarMonthName(form.lunarMonth)}${form.lunarDay}日`
           : `${y}年${m}月${d}日`,
+        form.name || '',
         form.city || (form.province ? form.province : ''),
         form.unknownTime ? '时辰不详' : `${SHICHEN_NAMES[branch]}时`,
         form.gender === 'male' ? '男' : '女',
@@ -340,7 +349,7 @@ day: !form.day ? '请选择日期'
             </div>
             <div>
               <select value={form.lunarMonth} onChange={e=>setForm(f=>({...f,lunarMonth:e.target.value}))} style={inputStyle}>
-                <option value="">月份</option>{Array.from({length:12},(_,i)=>i+1).map(mo=>(<option key={mo} value={String(mo)}>{mo}月</option>))}
+                <option value="">月份</option>{Array.from({length:12},(_,i)=>i+1).map(mo=>(<option key={mo} value={String(mo)}>{lunarMonthName(String(mo))}</option>))}
               </select>
             </div>
             <div>
