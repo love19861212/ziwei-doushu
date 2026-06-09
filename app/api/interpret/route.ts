@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart } from '@/lib/ziwei/types';
+import { SYSTEM_PROMPT_V2, TOPIC_PROMPTS_V2, compressChartV2 } from '@/lib/ziwei/prompts';
+
+// 2026-06-09: AI 提示词 v2 开关 (默认关, 走 v1 稳)
+// 启用: export INTERPRET_PROMPT_V2=true && systemctl restart ziwei
+const USE_V2 = process.env.INTERPRET_PROMPT_V2 === 'true';
 
 const MINIMAX_API_KEY = 'sk-cp-OTEMgOGBgD8nn6BKzQlweLUavd-mZlpnbmBvDdGA85po5GiFtL_af11Ed29ygpY5uR2slEDCfuI5kYqZVQvIAAGJnQBxgAGyUHNSOOwDTRDslH44bu94Tc8';
 const MINIMAX_BASE_URL = 'https://api.minimaxi.com/v1';
@@ -90,11 +95,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '缺少命盘数据' }, { status: 400 });
     }
 
-    const chartText = compressChart(chart);
-    const userPrompt = TOPIC_PROMPTS[topic] || '请全面分析这个命盘。命盘数据中已包含命宫四化星信息，请结合四化星落宫综合分析，不要说"四化未提供"。';
+    // 2026-06-09: v2 走新提示词 + 6 段结构化压缩
+    const chartText = USE_V2 ? compressChartV2(chart) : compressChart(chart);
+    const userPrompt = USE_V2
+      ? (TOPIC_PROMPTS_V2[topic] || '请全面分析这个命盘。')
+      : (TOPIC_PROMPTS[topic] || '请全面分析这个命盘。命盘数据中已包含命宫四化星信息，请结合四化星落宫综合分析，不要说"四化未提供"。');
+    const systemContent = USE_V2 ? SYSTEM_PROMPT_V2 : SYSTEM_PROMPT;
 
     // Build conversation history for context
-    const systemMsg = { role: 'system' as const, content: SYSTEM_PROMPT };
+    const systemMsg = { role: 'system' as const, content: systemContent };
     const chartMsg = { role: 'user' as const, content: `这是我命盘的基础信息，请熟记并在后续分析中结合参考：\n\n${chartText}` };
 
     // Build recent conversation context (last 6 messages to avoid token overflow)
