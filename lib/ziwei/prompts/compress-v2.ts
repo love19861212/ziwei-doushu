@@ -114,23 +114,16 @@ function formatSanFang(mingGongBranch: number, palaces: Palace[]): string {
 /**
  * W2-2: 流年触发宫识别
  *
- * 简化算法 (倪海厦体系):
- * - 流年地支 = currentYear % 12 + offset (地支 0=子 4=辰 8=申 ...)
- *   i.e. (currentYear - 4) % 12 → branch index
- *   2024 甲子年(branch 0) → (2024-4) % 12 = 2020 % 12 = 8... 错
- *   实际: 2024 甲子 branch=0, 2025 乙丑=1, 2026 丙午=... 让我重算
+ * 算法 (锁定 2020 庚子年 = branch 0 作为锚点):
+ * - 2020 庚子 = branch 0 (子)
+ * - 2021 辛丑 = branch 1
+ * - 2026 丙午 = branch 6 (午)
+ * - 公式: branch = (currentYear - 2020) % 12
  *
- * 2024 = 甲子 = branch 0
- * 2025 = 乙丑 = branch 1
- * 2026 = 丙寅 = branch 2
- * 2027 = 丁卯 = branch 3
- * ...
- * 公式: branch = (currentYear - 2024 + 12*k) % 12
- *
- * 流年宫 = 地支索引对应的宫位
+ * (2026-06-09 修: 之前用 2024 错 - 2024 实际是甲辰年 branch 4, 不是甲子)
  */
 function getLiuNianBranch(currentYear: number): number {
-  return ((currentYear - 2024) % 12 + 12) % 12;
+  return ((currentYear - 2020) % 12 + 12) % 12;
 }
 
 function formatLiuNian(currentYear: number, palaces: Palace[]): string {
