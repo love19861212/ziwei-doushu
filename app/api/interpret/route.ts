@@ -7,12 +7,80 @@ import { SYSTEM_PROMPT_V2, TOPIC_PROMPTS_V2, compressChartV2 } from '@/lib/ziwei
 // 启用: export INTERPRET_PROMPT_V2=true && systemctl restart ziwei
 const USE_V2 = process.env.INTERPRET_PROMPT_V2 === 'true';
 
-const MINIMAX_API_KEY = 'sk-cp-OTEMgOGBgD8nn6BKzQlweLUavd-mZlpnbmBvDdGA85po5GiFtL_af11Ed29ygpY5uR2slEDCfuI5kYqZVQvIAAGJnQBxgAGyUHNSOOwDTRDslH44bu94Tc8';
+const MINIMAX_API_KEY = 'sk-cp-…4Tc8';
 const MINIMAX_BASE_URL = 'https://api.minimaxi.com/v1';
 const MODEL = 'MiniMax-M2.7';
 
 const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+// ===== W3 改造 (2026-06-09): token 预算 / 追问 / 错误降级 =====
+const INPUT_TOKEN_BUDGET = 30_000;   // 30k 留给 input (含 system + chart + history)
+const OUTPUT_TOKEN_LIMIT = 16_000;   // 16k 给 output
+const MAX_HISTORY_MESSAGES = 8;      // 最多 8 条对话历史
+const LLM_TIMEOUT_MS = 60_000;       // 60s 超时
+
+/**
+ * 估算 token 数 (中文约 1.5 字符/token, 英文约 4 字符/token)
+ * 简化: 1 token ≈ 1.5 中文字符 ≈ 3 英文字符
+ */
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  // 中文字符数
+  const cnChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+  // 非中文字符数
+  const otherChars = text.length - cnChars;
+  return Math.ceil(cnChars / 1.5 + otherChars / 3);
+}
+
+/**
+ * 截断历史以满足 token 预算 (从最新到最旧)
+ */
+function truncateHistoryByBudget(
+  history: Array<{ role: string; content: string }>,
+  budget: number
+): Array<{ role: string; content: string }> {
+  if (history.length === 0) return [];
+  // 从最新开始累加
+  let usedTokens = 0;
+  const kept: Array<{ role: string; content: string }> = [];
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    const tokens = estimateTokens(msg.content) + 4; // 4 角色标签
+    if (usedTokens + tokens > budget) break;
+    kept.unshift(msg);
+    usedTokens += tokens;
+  }
+  return kept;
+}
+
+/**
+ * W3-3: 错误降级 - 当 MiniMax 失败时, 基于本地 iztro 数据生成模板
+ */
+function generateFallbackAnalysis(chart: ZiweiChart, topic: string): string {
+  const chartText = USE_V2 ? compressChartV2(chart) : compressChart(chart);
+  const topicName = ({ overview: '总论', love: '感情', career: '事业', wealth: '财运', health: '健康', personality: '性格' } as Record<string, string>)[topic] || '综合';
+
+  return `# 命盘${topicName} (离线模板)
+
+> ⚠️ AI 解读服务暂不可用, 以下为基于本地命盘数据的结构化分析
+
+${chartText}
+
+## 📊 本地数据小结 (供离线参考)
+
+1. **命宫主星** 显示您最核心的性格特质
+2. **三方四正** 综合命宫 + 对宫 + 三方星曜
+3. **四化落宫** 重点关注化忌所在宫位
+4. **大限流年** 当前大限走何宫 + 当年流年触发
+
+## 💡 建议
+
+- **联网重试**: AI 服务恢复后可获得深度解读
+- **结构化查询**: 6 个主题 (overview/love/career/wealth/health/personality) 均可问
+- **追问模式**: 选定 followup 主题可基于上一轮答案深挖
+`;
+}
 
 function compressChart(chart: ZiweiChart): string {
   const { birthInfo, lunarInfo, mingGongBranch, shenGongBranch, wuxingJuName, palaces, daXians, currentAge, currentDaXianIndex } = chart;
@@ -87,6 +155,9 @@ const TOPIC_PROMPTS: Record<string, string> = {
   personality: '请深度解析性格特质，及其对人生各方面的影响。',
 };
 
+// W3-2: 追问 topic (W3-2 改造, 2026-06-09)
+const TOPIC_PROMPTS_FOLLOWUP = '这是上一轮对话的延续, 请基于历史上下文直接回答用户最新问题。无需重复命盘数据。';
+
 export async function POST(req: NextRequest) {
   try {
     const { chart, messages, topic } = await req.json();
@@ -95,46 +166,105 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '缺少命盘数据' }, { status: 400 });
     }
 
-    // 2026-06-09: v2 走新提示词 + 6 段结构化压缩
-    const chartText = USE_V2 ? compressChartV2(chart) : compressChart(chart);
-    const userPrompt = USE_V2
-      ? (TOPIC_PROMPTS_V2[topic] || '请全面分析这个命盘。')
-      : (TOPIC_PROMPTS[topic] || '请全面分析这个命盘。命盘数据中已包含命宫四化星信息，请结合四化星落宫综合分析，不要说"四化未提供"。');
+    // ===== W3-2: 追问模式 (followup 不重发 chart) =====
+    const isFollowup = topic === 'followup';
+
+    // 2026-06-09: v2 走新提示词 + 9 段结构化压缩
+    const chartText = USE_V2 && !isFollowup ? compressChartV2(chart) : '';
+    const userPrompt = isFollowup
+      ? TOPIC_PROMPTS_FOLLOWUP
+      : (USE_V2
+          ? (TOPIC_PROMPTS_V2[topic] || '请全面分析这个命盘。')
+          : (TOPIC_PROMPTS[topic] || '请全面分析这个命盘。命盘数据中已包含命宫四化星信息，请结合四化星落宫综合分析，不要说"四化未提供"。'));
     const systemContent = USE_V2 ? SYSTEM_PROMPT_V2 : SYSTEM_PROMPT;
 
-    // Build conversation history for context
-    const systemMsg = { role: 'system' as const, content: systemContent };
-    const chartMsg = { role: 'user' as const, content: `这是我命盘的基础信息，请熟记并在后续分析中结合参考：\n\n${chartText}` };
+    // ===== W3-1: token 计数 + 截断 =====
+    const systemTokens = estimateTokens(systemContent);
+    const chartTokens = estimateTokens(chartText);
+    const userPromptTokens = estimateTokens(userPrompt);
+    const fixedTokens = systemTokens + chartTokens + userPromptTokens + 100; // 100 = role 标签等
 
-    // Build recent conversation context (last 6 messages to avoid token overflow)
-    const recentHistory = (messages ?? []).slice(-6).map((m: { role: string; content: string }) => ({
+    const remainingBudget = INPUT_TOKEN_BUDGET - fixedTokens;
+    const truncatedHistory = truncateHistoryByBudget(
+      (messages ?? []).slice(-MAX_HISTORY_MESSAGES),
+      Math.max(0, remainingBudget)
+    );
+    const historyTokens = truncatedHistory.reduce((sum, m) => sum + estimateTokens(m.content) + 4, 0);
+
+    // 日志: token 使用情况
+    console.log(`[interpret] topic=${topic} followup=${isFollowup} system=${systemTokens} chart=${chartTokens} userPrompt=${userPromptTokens} history=${truncatedHistory.length}msg/${historyTokens}tok total=${fixedTokens + historyTokens}`);
+
+    // Build messages
+    const systemMsg = { role: 'system' as const, content: systemContent };
+    const chartMsg = isFollowup ? null : { role: 'user' as const, content: `这是我命盘的基础信息，请熟记并在后续分析中结合参考：\n\n${chartText}` };
+    const historyMsgs = truncatedHistory.map((m: { role: string; content: string }) => ({
       role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
       content: m.content,
     }));
 
     const fullPrompt = `${chartText}\n\n${userPrompt}`;
 
-    // Stream response from MiniMax
-    const aiResponse = await fetch(`${MINIMAX_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MINIMAX_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [systemMsg, chartMsg, ...recentHistory, { role: 'user', content: userPrompt }],
-        temperature: 0.7,
-        max_tokens: 16000,
-        stream: true,
-        // 关闭 MiniMax M2.7 思考过程
-        reasoning_split: false,
-      }),
-    });
+    // ===== 调用 MiniMax (带 W3-3 错误降级) =====
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
+    let aiResponse;
+    try {
+      aiResponse = await fetch(`${MINIMAX_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${MINIMAX_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [systemMsg, ...(chartMsg ? [chartMsg] : []), ...historyMsgs, { role: 'user', content: userPrompt }],
+          temperature: 0.7,
+          max_tokens: OUTPUT_TOKEN_LIMIT,
+          stream: true,
+          reasoning_split: false,
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr: unknown) {
+      clearTimeout(timeoutId);
+      const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      const isTimeout = errMsg.includes('aborted') || errMsg.includes('timeout');
+      console.error(`[interpret] fetch failed: ${errMsg} (timeout=${isTimeout})`);
+
+      // W3-3: 错误降级 - 返回本地模板
+      const fallback = generateFallbackAnalysis(chart, topic || 'overview');
+      return new NextResponse(fallback, {
+        status: 200,  // 用 200 + 特殊 header 表明是 fallback
+        headers: {
+          'Content-Type': 'text/markdown; charset=utf-8',
+          'X-Interpret-Fallback': 'true',
+          'X-Interpret-Fallback-Reason': isTimeout ? 'timeout' : 'fetch_error',
+        },
+      });
+    }
+    clearTimeout(timeoutId);
 
     if (!aiResponse.ok) {
-      const err = await aiResponse.text();
-      return NextResponse.json({ error: `AI服务错误: ${aiResponse.status}` }, { status: 502 });
+      const errStatus = aiResponse.status;
+      const errText = await aiResponse.text();
+      console.error(`[interpret] MiniMax ${errStatus}: ${errText.slice(0, 200)}`);
+
+      // W3-3: 5xx / 429 → fallback
+      if (errStatus >= 500 || errStatus === 429 || errStatus === 408) {
+        const fallback = generateFallbackAnalysis(chart, topic || 'overview');
+        return new NextResponse(fallback, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/markdown; charset=utf-8',
+            'X-Interpret-Fallback': 'true',
+            'X-Interpret-Fallback-Reason': `${errStatus}`,
+          },
+        });
+      }
+
+      // 4xx 客户端错 → 正常报错
+      return NextResponse.json({ error: `AI服务错误: ${errStatus}` }, { status: 502 });
     }
 
     // Transform MiniMax SSE → Next.js streaming response
@@ -165,13 +295,11 @@ export async function POST(req: NextRequest) {
               }
               try {
                 const data = JSON.parse(dataStr);
-                // 过滤 reasoning_content (MiniMax M2.7 思考过程)
                 const text = data.choices?.[0]?.delta?.content;
                 if (text) {
                   const eventData = JSON.stringify({ delta: { text } });
                   controller.enqueue(encoder.encode(`data: ${eventData}\n`));
                 }
-                // 不发送 reasoning_content (思考过程) 和 reasoning_detail
               } catch {}
             }
           }
@@ -189,6 +317,7 @@ export async function POST(req: NextRequest) {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no',
+        'X-Interpret-Tokens': `${fixedTokens + historyTokens}`,
       },
     });
   } catch (e: unknown) {
