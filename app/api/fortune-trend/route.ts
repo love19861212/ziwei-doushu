@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { ZiweiChart, Palace } from '@/lib/ziwei/types';
-import { EARTHLY_BRANCHES } from '@/lib/ziwei/wenmo';
+import { EARTHLY_BRANCHES, getPalaceByBranch } from '@/lib/ziwei/wenmo';
 
 const W4_ENABLED = process.env.FORTUNE_TREND_ENABLED !== 'false'; // 默认开
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < years; i++) {
       const year = currentYear + i;
       const lnBranch = getLiuNianBranch(year);
-      const lnPalace = palaces[lnBranch];
+      const lnPalace = getPalaceByBranch(palaces, lnBranch);
 
       // 找出该年所在的大限 (按 age 范围)
       const ageThatYear = chart.currentAge + i;

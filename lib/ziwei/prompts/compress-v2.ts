@@ -19,6 +19,7 @@ import {
   EARTHLY_BRANCHES,
   FIVE_ELEMENT_BUREAU,
   PALACE_NAMES,
+  getPalaceByBranch,
 } from '../wenmo';
 
 const GENDER_TEXT = { male: '男', female: '女' } as const;
@@ -128,7 +129,7 @@ function getLiuNianBranch(currentYear: number): number {
 
 function formatLiuNian(currentYear: number, palaces: Palace[]): string {
   const branch = getLiuNianBranch(currentYear);
-  const p = palaces?.[branch];
+  const p = getPalaceByBranch(palaces, branch);
   if (!p) return `${currentYear}年流年宫：${EARTHLY_BRANCHES[branch]}位`;
 
   const stars = (p.stars ?? [])
@@ -152,11 +153,11 @@ function formatDaXianLiuNianCross(
   if (!currentDaXian) return '';
 
   const liuNianBranch = getLiuNianBranch(currentYear);
-  const liuNianPalace = palaces?.[liuNianBranch];
+  const liuNianPalace = getPalaceByBranch(palaces, liuNianBranch);
   const liuNianName = liuNianPalace?.name || EARTHLY_BRANCHES[liuNianBranch];
 
-  // 大限宫 = palaceBranch 映射到 palaces[]
-  const dxPalace = palaces?.[currentDaXian.palaceBranch];
+  // 大限宫
+  const dxPalace = getPalaceByBranch(palaces, currentDaXian.palaceBranch);
   const dxName = dxPalace?.name || EARTHLY_BRANCHES[currentDaXian.palaceBranch];
 
   // 关系: 同行(同地支) / 三方 / 对宫 / 其他

@@ -45,3 +45,6 @@ export {
 
 export type { Language, GCSArray } from './types';
 export type { SihuaEntry } from './gcs-pool';
+
+// 宫位查找工具 (修 iztro 偏移 bug)
+export { branchToPalaceIndex, getPalaceByBranch } from './palace-lookup';

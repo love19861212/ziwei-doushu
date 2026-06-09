@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { ZiweiChart, Palace } from '@/lib/ziwei/types';
-import { EARTHLY_BRANCHES } from '@/lib/ziwei/wenmo';
+import { EARTHLY_BRANCHES, getPalaceByBranch } from '@/lib/ziwei/wenmo';
 
 const W4_ENABLED = process.env.FORTUNE_TIMELINE_ENABLED !== 'false'; // 默认开
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const liuNianList: LiuNianEntry[] = [];
     for (let y = 2020; y <= 2031; y++) {
       const branch = getLiuNianBranch(y);
-      const p = palaces[branch];
+      const p = getPalaceByBranch(palaces, branch);
       const mainStars = (p?.stars ?? [])
         .filter(s => s.type === 'major')
         .map(s => s.name + (s.siHua ? `化${s.siHua}` : ''))
