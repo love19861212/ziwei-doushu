@@ -7,9 +7,11 @@ import { SYSTEM_PROMPT_V2, TOPIC_PROMPTS_V2, compressChartV2 } from '@/lib/ziwei
 // 启用: export INTERPRET_PROMPT_V2=true && systemctl restart ziwei
 const USE_V2 = process.env.INTERPRET_PROMPT_V2 === 'true';
 
-const MINIMAX_API_KEY = 'sk-cp-…4Tc8';
-const MINIMAX_BASE_URL = 'https://api.minimaxi.com/v1';
-const MODEL = 'MiniMax-M2.7';
+// 2026-06-10: 改用 env 变量 (旧版硬编码 + 误写成 '…' 导致 6-09 上线后 AI 解读全挂)
+// systemd: /etc/systemd/system/ziwei.service 的 Environment= 配置
+const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || '';
+const MINIMAX_BASE_URL = process.env.MINIMAX_BASE_URL || 'https://api.minimaxi.com/v1';
+const MODEL = process.env.MINIMAX_MODEL || 'MiniMax-M2.7';
 
 const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
