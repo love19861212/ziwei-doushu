@@ -64,8 +64,8 @@ function parseWuxingJu(name: string): number {
 
 // ─── 主函数：生成命盘 ────────────────────────────────────────────
 
-// 2026-06-07: 删除之前的 clockHourToTimeIndex 错误函数
-// BirthInfo.hour 本身就是 时辰地支索引 0-11(由 formToBirthInfo.calcTrueSolarBranch 计算)
+// 2026-06-11 回归: 倪海夏《天纪》派, BirthInfo.hour 是钟表时辰地支索引 0-11
+// formToBirthInfo 调 clockHourToTimeIndex 把钟表小时转成地支索引
 // iztro bySolar 第 2 参数期望的就是 0-11(0=子, 1=丑, ..., 11=亥)
 // 直接传 hour 即可,不要再转换!
 
@@ -75,11 +75,10 @@ export function generateChart(birthInfo: BirthInfo): ZiweiChart {
   // 调用 iztro 排盘
   const solarDate = `${year}-${month}-${day}`;
   const iztroGender = gender === 'male' ? '男' : '女';
-  // 2026-06-07 fix: BirthInfo.hour 已经是 时辰地支索引(0-11) - 跟 iztro timeIndex 一致!
-  //   formToBirthInfo 调 calcTrueSolarBranch 算真太阳时 → 返回地支索引 0-11
+  // 2026-06-11: BirthInfo.hour 已经是钟表时辰地支索引(0-11) - 跟 iztro timeIndex 一致!
+  //   formToBirthInfo 调 clockHourToTimeIndex 把钟表小时转地支索引
   //   iztro bySolar 第 2 参数: 0=子时 / 1=丑时 / 2=寅时 / ... / 9=酉时 / 10=戌时 / 11=亥时
-  //   之前 bug: 调 clockHourToTimeIndex(hour) 把地支索引当 clock hour,差 1-2 格
-  //   正确: 直接传 hour 给 iztro
+  //   直接传 hour 给 iztro
   const astrolabe = astro.bySolar(solarDate, hour, iztroGender, true, 'zh-CN');
 
   // ── 组装十二宫 ──

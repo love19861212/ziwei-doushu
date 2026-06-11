@@ -5,7 +5,7 @@ import type { BirthInfo } from '@/lib/ziwei/types';
 import { SHICHEN } from '@/lib/ziwei/constants';
 import { useTheme } from '@/components/ThemeProvider';
 import { PROVINCES } from '@/lib/ziwei/cities';
-import { calcTrueSolarBranch, calcTrueSolarHM, normalizeClockHour, shiChenToClockHour } from '@/lib/ziwei/share';
+import { clockHourToTimeIndex, calcTrueSolarHM, normalizeClockHour, shiChenToClockHour } from '@/lib/ziwei/share';
 
 export interface BirthFormState {
 name: string;
@@ -112,25 +112,23 @@ _solarDay: initialData?._solarDay ?? '',
 
   const branch = useMemo(() => {
     if (form.unknownTime) return 0;
-    // 2026-06-11 改造: 跟文墨天机对齐, 排盘用真太阳时
-    // 注意: 12h 模式下 form.clockHour 存的是 12时辰 索引 (0-11), 不是 24h 钟表
-    const { hour, minute } = normalizeClockHour(form);
-    if (!hour && !minute) return 0;
-    return calcTrueSolarBranch(hour, minute, form.longitude);
-  }, [form.clockHour, form.clockMinute, form.timeMode, form.unknownTime, form.longitude]);
-
-  // 钟表时 vs 真太阳时 是否跨时辰 (用文墨天机 popup 提示)
-  const clockBranch = useMemo(() => {
-    if (form.unknownTime) return -1;
-    if (form.timeMode === '12h') {
-      return parseInt(form.clockHour) || 0;  // 12h 模式: 直接是时辰索引
-    }
-    return h24to12(parseInt(form.clockHour) || 0, parseInt(form.clockMinute) || 0);
+    // 2026-06-11 回归: 倪海夏《天纪》派, 直接按钟表时辰, 不校准真太阳时
+    // 12h 模式下 form.clockHour 存的是 12时辰 索引 (0-11), 通过 normalizeClockHour 转 24h
+    const { hour } = normalizeClockHour(form);
+    if (!hour) return 0;
+    return clockHourToTimeIndex(hour);
   }, [form.clockHour, form.clockMinute, form.timeMode, form.unknownTime]);
-  const crossShiChen = !form.unknownTime && clockBranch !== -1 && clockBranch !== branch;
 
   const offsetMin = Math.round((120 - form.longitude) * 4);  // 经度差 分钟 (绝对值, 用于显示)
   const shichenInfo = SHICHEN[branch];
+
+  // 钟表时 vs 真太阳时 (仅供参考, 不参与排盘, 倪海夏派不用)
+  const trueSolarHM = useMemo(() => {
+    if (form.unknownTime) return '';
+    const { hour, minute } = normalizeClockHour(form);
+    if (!hour) return '';
+    return calcTrueSolarHM(hour, minute, form.longitude);
+  }, [form.clockHour, form.clockMinute, form.timeMode, form.unknownTime, form.longitude]);
 
   // ─── 校验逻辑 ───────────────────────────────────────────
   const y = parseInt(form.year) || 0;
@@ -203,7 +201,7 @@ day: !form.day ? '请选择日期'
     } else if (hasError) { return; }
     if (!form.unknownTime && !form.clockHour) { alert('请选择出生时辰'); return; }  // 2026-06-07 fix: 未选时间不允许起盘
 
-    // 子时跨日: 早子(00:00-00:59) 加一天
+    // 子时跨日 (倪海夏《天纪》派): 早子(00:00-00:59) 加一天 (算次日); 晚子(23:00-23:59) 保持当天
     const { hour: clock24, minute: clockMin } = normalizeClockHour(form);
     let finalY=sy, finalM=sm, finalD=sd;
     if (!form.unknownTime && clock24 === 0 && finalY > 0 && finalM > 0 && finalD > 0) {
@@ -213,39 +211,18 @@ day: !form.day ? '请选择日期'
       finalD = next.getDate();
     }
 
-    // 2026-06-11: 跨时辰警告 (跟文墨天机 popup 提示一致)
-    if (crossShiChen) {
-      const skip = typeof window !== 'undefined' && localStorage.getItem('skipCrossShiChenWarn') === '1';
-      if (!skip) {
-        const proceed = window.confirm(
-          `⚠️ 时辰跨界提醒\n\n` +
-          `钟表时间: ${clock24.toString().padStart(2,'0')}:${clockMin.toString().padStart(2,'0')} = ${SHICHEN_NAMES[clockBranch]}时\n` +
-          `真太阳时: ${calcTrueSolarHM(clock24, clockMin, form.longitude)} = ${SHICHEN_NAMES[branch]}时\n\n` +
-          `您输入的生辰临近两个时辰的分界点,真太阳时换算后可能跨时辰。\n` +
-          `文墨天机官方表态: 实践证明,在钟表时间记录准确的前提下,真太阳时排盘准确度更高。\n\n` +
-          `排盘将按真太阳时 (${SHICHEN_NAMES[branch]}时) 进行。\n\n` +
-          `【确定】继续   【取消】重新检查输入`
-        );
-        if (!proceed) return;
-        // 询问是否 30 天内不再提示
-        if (window.confirm('是否 30 天内不再提示?')) {
-          localStorage.setItem('skipCrossShiChenWarn', '1');
-        }
-      }
-    }
-
     onFormSave?.({...form});
     onSubmit({
       year: finalY, month: finalM, day: finalD,
-      hour: branch,                       // 真太阳时时支 (iztro timeIndex 0-11)
+      hour: branch,                       // 钟表时辰支 (iztro timeIndex 0-11, 倪海夏《天纪》派)
       minute: clockMin,
-      clockHour: clock24,                 // 24小时钟表 (子时=0 或 23, 其他正常)
+      clockHour: clock24,                 // 24小时钟表
       gender: form.gender,
       name: form.name || undefined,
       province: form.province || undefined,
       city: form.city || undefined,
       longitude: form.province ? form.longitude : undefined,
-      trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clock24, clockMin, form.longitude),
+      trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clock24, clockMin, form.longitude),  // 参考值
     });
   };
 
@@ -411,7 +388,7 @@ day: !form.day ? '请选择日期'
 
       {/* ── 出生地点 ── */}
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', fontSize: '11px', color: labelClr, marginBottom: '6px', letterSpacing: '0.05em' }}>出生地点（用于真太阳时校正）</label>
+        <label style={{ display: 'block', fontSize: '11px', color: labelClr, marginBottom: '6px', letterSpacing: '0.05em' }}>出生地点（参考）</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <select
             value={form.province}
@@ -508,13 +485,18 @@ day: !form.day ? '请选择日期'
           )}
           <div style={{textAlign:'center',padding:'4px 0'}}>
             <span style={{fontSize:'10px',color:isDark?'rgba(170,195,220,0.75)':'rgba(140,100,20,0.5)'}}>
-              {form.timeMode==='24h'?'真太阳时 → ':'对应24小时 → '}
+              {form.timeMode==='24h'?'所属时辰 → ':'对应24小时 → '}
             </span>
             <span style={{fontSize:'15px',color:goldText,fontWeight:600,letterSpacing:'0.08em'}}>
               {form.timeMode==='24h'?SHICHEN_NAMES[branch]+'时':(()=>{const h=shiChenToClockHour(parseInt(form.clockHour)||0);return h.toString().padStart(2,'0')+':00';})()}
             </span>
             {form.timeMode==='24h'&&shichenInfo&&(<span style={{fontSize:'10px',color:isDark?'rgba(170,195,220,0.75)':'rgba(140,100,20,0.5)',marginLeft:'4px'}}>（{shichenInfo.range}）</span>)}
           </div>
+          {form.timeMode==='24h' && trueSolarHM && (
+            <div style={{textAlign:'center',padding:'2px 0',fontSize:'10px',color:isDark?'rgba(170,195,220,0.55)':'rgba(140,100,20,0.4)'}}>
+              参考: 真太阳时 {trueSolarHM}（本系统按钟表时辰排盘，不采用真太阳时）
+            </div>
+          )}
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '8px', cursor: 'pointer' }}>
           <input

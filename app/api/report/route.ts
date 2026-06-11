@@ -71,32 +71,20 @@ function buildReport(chart: any, isPro: boolean): string {
   sections.push(`# 紫微斗数全盘报告`);
   sections.push(``);
   sections.push(`**姓名**: ${chart.birthInfo?.name || '未填'}`);
-  // 2026-06-11 改造: 跟文墨天机对齐, 报告同时显示钟表/真太阳时 + 各自时支
+  // 2026-06-11 回归: 倪海夏《天纪》派, 按钟表时辰排盘, 不校准真太阳时
   const clockHM = chart.birthInfo?.clockHour !== undefined
     ? `${String(chart.birthInfo.clockHour).padStart(2,'0')}:${String(chart.birthInfo.minute ?? 0).padStart(2,'0')}`
     : '';
   const BRANCH_CN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-  const trueSolarHM = chart.birthInfo?.trueSolarHM || chart.solarTime || '未校准';
-  // 钟表时支 (逆推 24h -> 12时辰)
-  function clockToShiChenIdx(h: number): number {
-    if (h === 23 || h === 0) return 0;
-    if (h === 1 || h === 2) return 1;
-    return Math.floor((h + 1) / 2) % 12;
-  }
-  const clockBranchIdx = chart.birthInfo?.clockHour !== undefined
-    ? clockToShiChenIdx(chart.birthInfo.clockHour)
-    : chart.birthInfo?.hour ?? 0;
-  const trueSolarBranchIdx = chart.birthInfo?.hour ?? 0;  // BirthInfo.hour 已是真太阳时 (6月11后)
-  const clockBranchCN = BRANCH_CN[clockBranchIdx];
-  const trueSolarBranchCN = BRANCH_CN[trueSolarBranchIdx];
-  const crossBranch = clockBranchIdx !== trueSolarBranchIdx;
-
-  const clockText = clockHM ? `${clockHM}（${clockBranchCN}时）` : `${clockBranchCN}时`;
+  const trueSolarHM = chart.birthInfo?.trueSolarHM || chart.solarTime || '';
+  const branchIdx = chart.birthInfo?.hour ?? 0;
+  const branchCN = BRANCH_CN[branchIdx];
+  const clockText = clockHM ? `${clockHM}（${branchCN}时）` : `${branchCN}时`;
   sections.push(`**出生**: ${chart.birthInfo?.year}年${chart.birthInfo?.month}月${chart.birthInfo?.day}日 ${clockText}`);
   sections.push(`**性别**: ${chart.birthInfo?.gender === 'male' ? '男' : '女'}`);
   if (chart.birthInfo?.city) sections.push(`**出生地**: ${chart.birthInfo.city}`);
-  sections.push(`**真太阳时**: ${trueSolarHM}（${trueSolarBranchCN}时）${crossBranch ? '⚠️ 与钟表时跨时辰' : ''}`);
-  sections.push(`**排盘口径**: 真太阳时 (倪海夏《天纪》+ 文墨天机体系)`);
+  if (trueSolarHM) sections.push(`**真太阳时 (参考)**: ${trueSolarHM}　注: 倪海夏《天纪》派按钟表时辰排盘, 此值仅作参考`);
+  sections.push(`**排盘口径**: 钟表时辰 (倪海夏《天纪》体系)`);
   sections.push(`**命宫地支**: ${BRANCHES[chart.mingGongBranch] || '?'}`);
   sections.push(``);
 

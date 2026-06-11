@@ -4,14 +4,32 @@ import type { BirthInfo } from './types';
 /** 12 时辰地支名 */
 export const BRANCH_CN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
-/** 24小时钟表 → 真太阳时 (含 EoT 近似), 返回 "HH:MM"
- *  - 倪海夏《天纪》/ 文墨天机 体系: 排盘按真太阳时
- *  - 公式: solar = clock - (120 - longitude) * 4 分钟 (东经 offset 为正 → 减去)
- *  - 含 EoT 修正: 9.87 sin(2B) - 7.53 cos(B) - 1.5 sin(B), B = 2π/365 * (dayOfYear - 81)
+/** 倪海夏《天纪》派: 直接按钟表时辰排盘, 不校准真太阳时
+ *  钟表小时 (0-23) → 时辰地支索引 (0-12, 等于地支索引)
+ *  - 23:00-23:59 → 0 (子, 晚子, 算当天)
+ *  - 00:00-00:59 → 0 (子, 早子, 算次日)
+ *  - 01:00-01:59 → 1 (丑)
+ *  - 03:00-03:59 → 2 (寅)
+ *  - ...
+ *  - 21:00-21:59 → 11 (亥)
+ *  - 22:00-22:59 → 11 (亥)
+ */
+export function clockHourToTimeIndex(clockHour: number): number {
+  if (clockHour === 23) return 0;     // 23:00-23:59 = 晚子
+  if (clockHour === 0) return 0;      // 00:00-00:59 = 早子
+  if (clockHour === 1) return 1;      // 01:00-01:59 = 丑 (Math.floor((1+1)/2)=1 ✓)
+  if (clockHour === 22) return 11;    // 22:00-22:59 = 亥 (Math.floor(23/2)=11 ✓)
+  return Math.floor((clockHour + 1) / 2);
+}
+
+/** 真太阳时计算函数 (保留作参考, 不参与排盘)
+ *  - solar = clockMins - (120 - longitude) * 4 分钟
+ *  - 东经减, 西经加; 含 EoT 修正
+ *  - 仅用于报告/分享展示, 文墨天机参考值
  */
 export function calcTrueSolarHM(clockHour: number, clockMinute: number, longitude: number, dayOfYear: number = 162): string {
   const clockMins = clockHour * 60 + clockMinute;
-  const offset = (120 - longitude) * 4;  // 东经减, 西经加
+  const offset = (120 - longitude) * 4;
   const B = (2 * Math.PI / 365) * (dayOfYear - 81);
   const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
   const total = clockMins - offset + eot;
@@ -21,27 +39,40 @@ export function calcTrueSolarHM(clockHour: number, clockMinute: number, longitud
   return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
 }
 
-/** 24小时钟表 → 真太阳时地支索引 (0-11) — 倪海夏/文墨天机口径
- *  - 23:00-23:59 = 晚子时 (索引 0), 算当天
- *  - 00:00-00:59 = 早子时 (索引 0), 算次日 (日柱已切换)
- *  - 01:00-22:59  按 12 时辰窗口 (1=丑, 2=寅, ..., 11=亥)
+/** 真太阳时 → 时辰支索引 (0-11)
+ *  保留供 UI 显示, 排盘不用
  */
 export function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number): number {
   const clockMins = clockHour * 60 + clockMinute;
-  const offset = (120 - longitude) * 4;  // 经度差 → 分钟
-  const solarMins = ((clockMins - offset) % 1440 + 1440) % 1440;  // 关键: 减, 不是加!
-  // 23:00-23:59 (1380-1440 分钟) → 子时(0)
-  // 00:00-00:59 (0-60 分钟)     → 子时(0) 早子
-  // 01:00-01:59 (60-120)        → 丑时(1)
-  // ...
+  const offset = (120 - longitude) * 4;
+  const solarMins = ((clockMins - offset) % 1440 + 1440) % 1440;
   if (solarMins >= 1380 || solarMins < 60) return 0;
   return Math.floor((solarMins - 60) / 120) + 1;
 }
 
-/** 同步版 — 不支持农历 (但支持子时跨日 + 真太阳时)
- *  倪海夏/文墨天机派:
- *    - 23:00-23:59 晚子时 → 算当天
- *    - 00:00-00:59 早子时 → 算次日 (日柱切换)
+/** 12时辰索引 → 24小时钟表 (返回代表小时, 0-23)
+ *  - 0=子(23点代表), 1=丑(1点), 2=寅(3点), ..., 11=亥(21点)
+ */
+export function shiChenToClockHour(shiChenIdx: number): number {
+  return [23, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21][shiChenIdx] || 0;
+}
+
+/** 把 form.clockHour 规范化为 24 小时制 (0-23)
+ *  - timeMode=24h: 直接 parseInt
+ *  - timeMode=12h: 当 12时辰 索引, 用 shiChenToClockHour 转
+ */
+export function normalizeClockHour(form: BirthFormState): { hour: number; minute: number } {
+  const raw = parseInt(form.clockHour) || 0;
+  const min = parseInt(form.clockMinute) || 0;
+  if (form.timeMode === '12h') {
+    return { hour: shiChenToClockHour(raw), minute: min };
+  }
+  return { hour: raw, minute: min };
+}
+
+/** 同步版 — 倪海夏《天纪》派: 钟表时辰 + 子时跨日
+ *  - 23:00-23:59 晚子时 → 算当天
+ *  - 00:00-00:59 早子时 → 算次日 (日柱切换)
  */
 export function formToBirthInfo(form: BirthFormState): BirthInfo {
   let y = parseInt(form.year) || 0;
@@ -59,30 +90,26 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     d = next.getDate();
   }
 
-  // 排盘用真太阳时 (跟文墨天机对齐)
+  // 排盘用钟表时辰 (倪海夏《天纪》派)
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(clockHour, clockMin, form.longitude);
+    : clockHourToTimeIndex(clockHour);
 
   return {
     year: y, month: m, day: d,
     hour,
     minute: clockMin,
-    clockHour: clockHour === 24 ? 0 : clockHour,  // 23 → 不变; 0 → 0
+    clockHour: clockHour === 24 ? 0 : clockHour,
     gender: form.gender,
     name: form.name || undefined,
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
-    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude),
+    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude),  // 参考值, 排盘不用
   };
 }
 
-/** 异步版 — 支持农历自动转公历 + 真太阳时 + 子时跨日
- *  倪海夏/文墨天机派:
- *    - 23:00-23:59 晚子时 → 算当天
- *    - 00:00-00:59 早子时 → 算次日 (日柱切换)
- */
+/** 异步版 — 倪海夏《天纪》派: 钟表时辰 + 子时跨日 + 农历自动转公历 */
 export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthInfo> {
   let y = parseInt(form.year) || 0;
   let m = parseInt(form.month) || 0;
@@ -122,10 +149,10 @@ export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthI
     d = next.getDate();
   }
 
-  // 排盘用真太阳时 (跟文墨天机对齐)
+  // 排盘用钟表时辰 (倪海夏《天纪》派)
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(clockHour, clockMin, form.longitude);
+    : clockHourToTimeIndex(clockHour);
 
   return {
     year: y, month: m, day: d,
@@ -180,42 +207,4 @@ export function formToSearchParams(form: BirthFormState): URLSearchParams {
   if (form.longitude && form.longitude !== 120) p.set('lo', String(form.longitude));
   p.set('g', form.gender === 'male' ? 'm' : 'f');
   return p;
-}
-
-/** 24小时钟表 → 12时辰索引 (倪海夏/文墨天机口径, 不带经度校准)
- *  - 23:00-23:59 → 0 (子, 晚子, 算当天)
- *  - 00:00-00:59 → 0 (子, 早子, 算次日)
- *  - 01:00-01:59 → 1 (丑)
- *  - 03:00-03:59 → 2 (寅)
- *  - ...
- *  - 21:00-21:59 → 11 (亥)
- *  - 22:00-22:59 → 11 (亥)
- */
-export function clockHourToShiChen(clockHour: number): number {
-  if (clockHour === 23) return 0;     // 23:00-23:59 = 晚子
-  if (clockHour === 0) return 0;      // 00:00-00:59 = 早子
-  if (clockHour === 1) return 1;      // 01:00-01:59 = 丑
-  if (clockHour === 22) return 11;    // 22:00-22:59 = 亥 (注: 21点也是亥, 23点是子)
-  return Math.floor((clockHour + 1) / 2);
-}
-
-/** 12时辰索引 → 24小时钟表 (返回代表小时, 0-23)
- *  - 0=子(23点代表), 1=丑(1点), 2=寅(3点), ..., 11=亥(21点)
- */
-export function shiChenToClockHour(shiChenIdx: number): number {
-  return [23, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21][shiChenIdx] || 0;
-}
-
-/** 把 form.clockHour 规范化为 24 小时制 (0-23)
- *  - timeMode=24h: 直接 parseInt
- *  - timeMode=12h: 当 12时辰 索引, 用 shiChenToClockHour 转
- *  - 兼容旧的 (没 timeMode): 默认 24h
- */
-export function normalizeClockHour(form: BirthFormState): { hour: number; minute: number } {
-  const raw = parseInt(form.clockHour) || 0;
-  const min = parseInt(form.clockMinute) || 0;
-  if (form.timeMode === '12h') {
-    return { hour: shiChenToClockHour(raw), minute: min };
-  }
-  return { hour: raw, minute: min };
 }
