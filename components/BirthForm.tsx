@@ -213,7 +213,8 @@ day: !form.day ? '请选择日期'
       finalD = next.getDate();
     }
 
-    // 2026-06-11: 跨时辰警告 (跟文墨天机 popup 提示一致)
+    // 2026-06-12: 跨时辰警告 (跟文墨天机 popup 风格一致 — v25 反编译确认)
+    // 文默 popup 实际是 2 按钮 (确定/不再提示 30天) + 文案加 "实践" 那段官方表态
     if (crossShiChen) {
       const skip = typeof window !== 'undefined' && localStorage.getItem('skipCrossShiChenWarn') === '1';
       if (!skip) {
@@ -221,15 +222,17 @@ day: !form.day ? '请选择日期'
           `⚠️ 时辰跨界提醒\n\n` +
           `钟表时间: ${clock24.toString().padStart(2,'0')}:${clockMin.toString().padStart(2,'0')} = ${SHICHEN_NAMES[clockBranch]}时\n` +
           `真太阳时: ${calcTrueSolarHM(clock24, clockMin, form.longitude)} = ${SHICHEN_NAMES[branch]}时\n\n` +
-          `您输入的生辰临近两个时辰的分界点,真太阳时换算后可能跨时辰。\n` +
+          `您输入的生辰临近两个时辰的分界点,真太阳时换算后有可能跨时辰,排出来的命盘可能与不具备真太阳时计算能力的软件排出来的命盘不同。\n` +
           `文墨天机官方表态: 实践证明,在钟表时间记录准确的前提下,真太阳时排盘准确度更高。\n\n` +
           `排盘将按真太阳时 (${SHICHEN_NAMES[branch]}时) 进行。\n\n` +
-          `【确定】继续   【取消】重新检查输入`
+          `【确定】继续   【不再提示】30天内不再询问`
         );
         if (!proceed) return;
-        // 询问是否 30 天内不再提示
-        if (window.confirm('是否 30 天内不再提示?')) {
-          localStorage.setItem('skipCrossShiChenWarn', '1');
+        if (localStorage.getItem('skipCrossShiChenWarn') !== '1') {
+          // "确定" 后给个二次 confirm (跟 v25 推测风格类似)
+          if (window.confirm('是否 30 天内不再提示?')) {
+            localStorage.setItem('skipCrossShiChenWarn', '1');
+          }
         }
       }
     }

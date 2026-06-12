@@ -105,6 +105,17 @@ export default function ChartSummary({ chart }: ChartSummaryProps) {
           </span>
           <span>{STEMS[chart.lunarInfo.yearStem]}{BRANCHES[chart.lunarInfo.yearBranch]}年 · {BRANCHES[chart.birthInfo.hour]}时</span>
           <span>命宫{BRANCHES[chart.mingGongBranch]} · 身宫{BRANCHES[chart.shenGongBranch]}</span>
+          {chart.birthInfo.clockHour !== undefined && (
+            <span>
+              钟表 {String(chart.birthInfo.clockHour).padStart(2, '0')}:{String(chart.birthInfo.minute ?? 0).padStart(2, '0')}
+              {chart.birthInfo.trueSolarHM && ` · 真太阳时 ${chart.birthInfo.trueSolarHM}`}
+            </span>
+          )}
+          {chart.birthInfo.longitude !== undefined && (
+            <span style={{ color: 'var(--t-gold)', opacity: 0.7 }}>
+              经度 {chart.birthInfo.longitude.toFixed(2)}°E · 倪海夏《天纪》真太阳时口径
+            </span>
+          )}
         </div>
       </div>
       </motion.div>
