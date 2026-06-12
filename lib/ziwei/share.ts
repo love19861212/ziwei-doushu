@@ -25,17 +25,28 @@ export function calcTrueSolarHM(clockHour: number, clockMinute: number, longitud
  *  - 23:00-23:59 = 晚子时 (索引 0), 算当天
  *  - 00:00-00:59 = 早子时 (索引 0), 算次日 (日柱已切换)
  *  - 01:00-22:59  按 12 时辰窗口 (1=丑, 2=寅, ..., 11=亥)
+ *  - 2026-06-12 加 EoT 修正: 王二 16:00+104.40°E 不加 EoT 算 14:58 跨到未时 (命宫 6 午)
+ *    加 EoT +5.5min 算 15:03 还在申时 (命宫 5 巳) — 跟文墨天机 v24 报告一致
  */
-export function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number): number {
+export function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number, dayOfYear: number = 162): number {
   const clockMins = clockHour * 60 + clockMinute;
   const offset = (120 - longitude) * 4;  // 经度差 → 分钟
-  const solarMins = ((clockMins - offset) % 1440 + 1440) % 1440;  // 关键: 减, 不是加!
+  const B = (2 * Math.PI / 365) * (dayOfYear - 81);
+  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  const solarMins = ((clockMins - offset + eot) % 1440 + 1440) % 1440;  // 减经度, 加 EoT
   // 23:00-23:59 (1380-1440 分钟) → 子时(0)
   // 00:00-00:59 (0-60 分钟)     → 子时(0) 早子
   // 01:00-01:59 (60-120)        → 丑时(1)
   // ...
   if (solarMins >= 1380 || solarMins < 60) return 0;
   return Math.floor((solarMins - 60) / 120) + 1;
+}
+
+/** 工具: yyyy-MM-dd → dayOfYear (1-365) */
+export function toDayOfYear(year: number, month: number, day: number): number {
+  const d = new Date(year, month - 1, day);
+  const start = new Date(year, 0, 0);
+  return Math.floor((d.getTime() - start.getTime()) / 86400000);
 }
 
 /** 同步版 — 不支持农历 (但支持子时跨日 + 真太阳时)
@@ -59,10 +70,11 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     d = next.getDate();
   }
 
-  // 排盘用真太阳时 (跟文墨天机对齐)
+  // 排盘用真太阳时 (跟文墨天机对齐) — 2026-06-12 加 EoT
+  const dayOfYear = (y > 0 && m > 0 && d > 0) ? toDayOfYear(y, m, d) : 162;
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(clockHour, clockMin, form.longitude);
+    : calcTrueSolarBranch(clockHour, clockMin, form.longitude, dayOfYear);
 
   return {
     year: y, month: m, day: d,
@@ -74,7 +86,7 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
-    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude),
+    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude, dayOfYear),
   };
 }
 
@@ -122,10 +134,11 @@ export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthI
     d = next.getDate();
   }
 
-  // 排盘用真太阳时 (跟文墨天机对齐)
+  // 排盘用真太阳时 (跟文墨天机对齐) — 2026-06-12 加 EoT
+  const dayOfYear = (y > 0 && m > 0 && d > 0) ? toDayOfYear(y, m, d) : 162;
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(clockHour, clockMin, form.longitude);
+    : calcTrueSolarBranch(clockHour, clockMin, form.longitude, dayOfYear);
 
   return {
     year: y, month: m, day: d,
@@ -137,7 +150,7 @@ export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthI
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
-    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude),
+    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude, dayOfYear),
   };
 }
 
