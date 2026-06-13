@@ -239,28 +239,25 @@ export default function TimeAxisGrid({
   const liushiScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 2026-06-13 v4: 加 console.log 看 effect 是否真跑 + 是否命中 ref
-    console.log('[time-axis] effect run, view=', view, 'liunianYear=', liunianYear);
+    // 2026-06-13 v5 (FINAL): 不用 useRef, 改用 document.querySelector
+    // root cause: 同一个 ref 在 desktop-show 和 desktop-hide 两处都 useRef={}
+    // React 保留最后一个 (desktop-hide), 它是 display:none, rect 全 0
+    // 新方案: 找 [data-active="true"] 然后 closest('.overflow-x-auto'), 自动定位 visible 那个
     const timer = setTimeout(() => {
-      const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
-        daxian: daxianScrollRef, liunian: liunianScrollRef, liuyue: liuyueScrollRef,
-        liuri: liuriScrollRef, liushi: liushiScrollRef,
-      };
-      const ref = refs[view === 'mingpan' ? 'daxian' : view];
-      const el = ref?.current;
-      console.log('[time-axis] el=', !!el, 'view=', view, 'class=', el?.className, 'computedDisplay=', el ? getComputedStyle(el).display : 'N/A', 'parentDisplay=', el?.parentElement ? getComputedStyle(el.parentElement).display : 'N/A', 'parentClass=', el?.parentElement?.className, 'grandparentDisplay=', el?.parentElement?.parentElement ? getComputedStyle(el.parentElement.parentElement).display : 'N/A');
-      if (!el) return;
-      const activeCell = el.querySelector('[data-active="true"]') as HTMLElement | null;
-      console.log('[time-axis] activeCell=', activeCell?.textContent?.trim());
+      const activeCell = document.querySelector('[data-active="true"]') as HTMLElement | null;
       if (!activeCell) return;
+      const scroller = activeCell.closest('.overflow-x-auto') as HTMLElement | null;
+      if (!scroller) return;
+      // 只滚当前 view 对应的 row (按 rowKey 标签筛选, 避免命中其他 row)
+      const row = scroller.closest('.flex.items-stretch.gap-0') as HTMLElement | null;
+      const rowLabel = row?.querySelector(':scope > div')?.textContent?.trim();
+      const expectedLabel = view === 'mingpan' ? '大限' : (view === 'daxian' ? '大限' : ({ liunian: '流年', liuyue: '流月', liuri: '流日', liushi: '流时' } as Record<string, string>)[view]);
+      if (rowLabel !== expectedLabel) return;
       const cellRect = activeCell.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const cellLeftInContainer = cellRect.left - elRect.left + el.scrollLeft;
-      const target = cellLeftInContainer - el.clientWidth / 2 + cellRect.width / 2;
-      const final = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
-      console.log('[time-axis] cellRect.left=', cellRect.left, 'elRect.left=', elRect.left, 'el.scrollLeft=', el.scrollLeft, 'clientWidth=', el.clientWidth, 'cellW=', cellRect.width, 'scrollWidth=', el.scrollWidth);
-      console.log('[time-axis] cellLeftInContainer=', cellLeftInContainer, 'target=', target, 'final=', final, 'cell=', activeCell.textContent?.trim());
-      el.scrollLeft = final;
+      const elRect = scroller.getBoundingClientRect();
+      const cellLeftInContainer = cellRect.left - elRect.left + scroller.scrollLeft;
+      const target = cellLeftInContainer - scroller.clientWidth / 2 + cellRect.width / 2;
+      scroller.scrollLeft = Math.max(0, Math.min(target, scroller.scrollWidth - scroller.clientWidth));
     }, 50);
     return () => clearTimeout(timer);
   }, [view, selectedDaXianIndex, liunianYear, liuyueMonth, liuriDay, liushiHour]);
