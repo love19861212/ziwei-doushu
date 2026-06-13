@@ -78,16 +78,15 @@ function buildDaXianCells(chart: ZiweiChart) {
   });
 }
 
-// 流年格生成 (出生年 ±6, 共 13 年)
-function buildLiunianCells(birthYear: number) {
+// 流年格生成 (围绕 liunianYear ±6, 共 13 年; 2026-06-13 修正: 之前用 birthYear, 默认 2026 不在 grid 里)
+function buildLiunianCells(_birthYear: number, liunianYear: number) {
   const cells = [];
   for (let i = -6; i <= 6; i++) {
-    const year = birthYear + i;
+    const year = liunianYear + i;
     const stemIdx = getYearStemIndex(year);
     const branchIdx = (year - 4) % 12;
-    const age = 2026 - year + 39; // 简化: 当前年 - 出生年 + 39 ? 实际应该用 liunianYear
-    // 虚岁: 出生年 + 1 起算
-    const nominalAge = year - birthYear + 1;
+    // 虚岁: 出生年 + 1 起算 (用 _birthYear 计算虚岁)
+    const nominalAge = year - _birthYear + 1;
     cells.push({
       year,
       stem: STEMS[stemIdx],
@@ -217,7 +216,7 @@ export default function TimeAxisGrid({
   onSelectDaXian, onSelectLiunian, onSelectLiuyue, onSelectLiuri, onSelectLiushi,
 }: TimeAxisGridProps) {
   const daXianCells = buildDaXianCells(chart);
-  const liunianCells = buildLiunianCells(chart.birthInfo.year);
+  const liunianCells = buildLiunianCells(chart.birthInfo.year, liunianYear);
   const liuyueCells = buildLiuyueCells(liunianYear);
   const liuriCells = buildLiuriCells(liunianYear, liuyueMonth);
   const liushiCells = buildLiushiCells(liunianYear, liuyueMonth, liuriDay);
