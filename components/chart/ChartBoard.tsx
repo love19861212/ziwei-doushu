@@ -4,12 +4,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart, Palace, Star } from '@/lib/ziwei/types';
 import { BRANCHES, STEMS } from '@/lib/ziwei/constants';
 import PalaceCell from './PalaceCell';
-import TimeNav, { type TimeView, getYearStemIndex, buildSiHuaOverlay } from './TimeNav';
+import TimeNav, { type TimeView, getYearStemIndex, getMonthStemIndex, getDayStemIndex, getHourStemIndex, buildSiHuaOverlay } from './TimeNav';
 
 interface ChartBoardProps {
   chart: ZiweiChart;
-  /** 外部指定大限索引 (DaXianPanel 点选后回传, 覆盖 chart.currentDaXianIndex) */
+  /** 外部指定大限索引 (TimeAxisGrid 点选后回传, 覆盖 chart.currentDaXianIndex) */
   selectedDaXianIndex?: number | null;
+  /** 2026-06-13: 外部 view 状态 (TimeAxisGrid / TopBar 切了同步过来) — 覆盖内部 timeView */
+  externalView?: TimeView;
+  externalLiunianYear?: number;
+  externalLiuyueMonth?: number;
+  externalLiuriDay?: number;
+  externalLiushiHour?: number;
   onStarSelect?: (star: Star, palace: Palace) => void;
   onPalaceSelect?: (palace: Palace) => void;
   onSiHuaClick?: (starName: string, siHua: string, view: TimeView) => void;
@@ -54,7 +60,11 @@ function getSanFangSiZheng(branch: number): [number, number, number, number] {
 
 const ANIMATION_ORDER = [5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4];
 
-export default function ChartBoard({ chart, selectedDaXianIndex, onStarSelect, onPalaceSelect, onSiHuaClick }: ChartBoardProps) {
+export default function ChartBoard({
+  chart, selectedDaXianIndex,
+  externalView, externalLiunianYear, externalLiuyueMonth, externalLiuriDay, externalLiushiHour,
+  onStarSelect, onPalaceSelect, onSiHuaClick,
+}: ChartBoardProps) {
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [timeView, setTimeView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState<number>(new Date().getFullYear());
@@ -62,21 +72,51 @@ export default function ChartBoard({ chart, selectedDaXianIndex, onStarSelect, o
   const palaceMap: Record<number, Palace> = {};
   chart.palaces.forEach(p => { palaceMap[p.branch] = p; });
 
-  // 计算当前叠加四化数据（大限或流年）
-  // 2026-06-13: 接受外部 selectedDaXianIndex (点 DaXianPanel 切换), 默认用 chart.currentDaXianIndex
+  // 2026-06-13: external prop 覆盖内部状态 (TopBar/TimeAxisGrid 切了同步过来)
+  const activeView = externalView ?? timeView;
+  const activeLiunianYear = externalLiunianYear ?? liunianYear;
+  const activeLiuyueMonth = externalLiuyueMonth ?? new Date().getMonth() + 1;
+  const activeLiuriDay = externalLiuriDay ?? new Date().getDate();
+  const activeLiushiHour = externalLiushiHour ?? 0;
+
+  // 计算当前叠加四化数据（大限/流年/流月/流日/流时 5 档）
+  // 2026-06-13: 接受外部 selectedDaXianIndex (点 TimeAxisGrid 切换), 默认用 chart.currentDaXianIndex
   const activeDaXianIndex = selectedDaXianIndex ?? chart.currentDaXianIndex;
   const currentDx = chart.daXians[activeDaXianIndex];
   const overlayData: Record<string, string> = (() => {
-    if (timeView === 'daxian' && currentDx) {
+    if (activeView === 'daxian' && currentDx) {
       const dxPalace = chart.palaces.find(p => p.branch === currentDx.palaceBranch);
       if (dxPalace) return buildSiHuaOverlay(dxPalace.stem);
     }
-    if (timeView === 'liunian') {
-      return buildSiHuaOverlay(getYearStemIndex(liunianYear));
+    if (activeView === 'liunian') {
+      return buildSiHuaOverlay(getYearStemIndex(activeLiunianYear));
+    }
+    if (activeView === 'liuyue') {
+      const yearStem = getYearStemIndex(activeLiunianYear);
+      const monthStem = getMonthStemIndex(yearStem, activeLiuyueMonth);
+      return buildSiHuaOverlay(monthStem);
+    }
+    if (activeView === 'liuri') {
+      const date = new Date(activeLiunianYear, activeLiuyueMonth - 1, activeLiuriDay);
+      const dayStem = getDayStemIndex(date);
+      return buildSiHuaOverlay(dayStem);
+    }
+    if (activeView === 'liushi') {
+      const date = new Date(activeLiunianYear, activeLiuyueMonth - 1, activeLiuriDay);
+      const dayStem = getDayStemIndex(date);
+      const hourStem = getHourStemIndex(dayStem, activeLiushiHour);
+      return buildSiHuaOverlay(hourStem);
     }
     return {};
   })();
-  const overlayLabel = timeView === 'daxian' ? '限' : timeView === 'liunian' ? '年' : undefined;
+  const overlayLabel = (() => {
+    if (activeView === 'daxian') return '限';
+    if (activeView === 'liunian') return '年';
+    if (activeView === 'liuyue') return '月';
+    if (activeView === 'liuri') return '日';
+    if (activeView === 'liushi') return '时';
+    return undefined;
+  })();
 
   const handlePalaceClick = (branch: number) => {
     setSelectedBranch(prev => {

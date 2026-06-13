@@ -11,7 +11,7 @@ import ShareModal from '@/components/ShareModal';
 import ReportModal from '@/components/ReportModal';
 import StarDetailPanel from '@/components/StarDetailPanel';
 import BrightnessSchoolSelector from '@/components/BrightnessSchoolSelector';
-import DaXianPanel from '@/components/DaXianPanel';
+import TimeAxisGrid from '@/components/chart/TimeAxisGrid';
 import type { BrightnessSchool } from '@/lib/ziwei/brightness-schools';
 import type { SchoolConfig } from '@/lib/ziwei/school-config';
 import { DEFAULT_SCHOOL_CONFIG } from '@/lib/ziwei/school-config';
@@ -348,22 +348,36 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
           {/* 主体：桌面双栏 / 手机上下堆叠 */}
           <div className="chart-workspace">
 
-            {/* 左栏：命盘主舞台 + 下面的大限流年面板 (仿文墨天机) */}
+            {/* 左栏：命盘主舞台 + 下面的 5 行时间轴 grid (仿文墨天机) */}
             <div className="chart-workspace-left">
               <ChartBoard
                 chart={chart}
                 selectedDaXianIndex={selectedDaXianIndex}
+                externalView={view}
+                externalLiunianYear={liunianYear}
+                externalLiuyueMonth={liuyueMonth}
+                externalLiuriDay={liuriDay}
+                externalLiushiHour={liushiHour}
                 onStarSelect={handleStarClick}
                 onPalaceSelect={handlePalaceClick}
                 onSiHuaClick={handleSiHuaBadgeClick}
               />
 
-              {/* 大限流年面板 — 2026-06-13 从右栏挪下来,接 onSelectDaXian 真切换 */}
+              {/* 5 行时间轴 grid (大限/流年/流月/流日/流时) — 2026-06-13 替代原 DaXianPanel */}
               <div style={{ marginTop: '20px' }}>
-                <DaXianPanel
+                <TimeAxisGrid
                   chart={chart}
-                  currentIndex={selectedDaXianIndex ?? chart.currentDaXianIndex ?? 0}
-                  onSelectDaXian={(idx) => setSelectedDaXianIndex(idx)}
+                  view={view}
+                  selectedDaXianIndex={selectedDaXianIndex ?? chart.currentDaXianIndex ?? 0}
+                  liunianYear={liunianYear}
+                  liuyueMonth={liuyueMonth}
+                  liuriDay={liuriDay}
+                  liushiHour={liushiHour}
+                  onSelectDaXian={(idx) => { setSelectedDaXianIndex(idx); setView('daxian'); }}
+                  onSelectLiunian={(y) => { setLiunianYear(y); setView('liunian'); }}
+                  onSelectLiuyue={(m) => { setLiuyueMonth(m); setView('liuyue'); }}
+                  onSelectLiuri={(d) => { setLiuriDay(d); setView('liuri'); }}
+                  onSelectLiushi={(h) => { setLiushiHour(h); setView('liushi'); }}
                 />
               </div>
 
