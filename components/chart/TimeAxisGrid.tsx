@@ -282,7 +282,8 @@ export default function TimeAxisGrid({
                 key={c.idx}
                 data-active={isActive}
                 onClick={() => onSelectDaXian(c.idx)}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-3 py-1.5 transition-all"
+                title={`大限 ${c.main}岁 · ${c.extra}${c.sub} · ${c.siHua ? c.siHua.join('') : ''}`}
+                className="flex-shrink-0 flex flex-col items-center justify-center px-3 py-1.5 transition-all hover:bg-white/5"
                 style={{
                   minWidth: '88px',
                   background: isActive ? 'rgba(212,168,67,0.18)' : 'transparent',
@@ -308,7 +309,8 @@ export default function TimeAxisGrid({
                 key={c.year}
                 data-active={isActive}
                 onClick={() => onSelectLiunian(c.year)}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 transition-all"
+                title={`流年 ${c.year} ${ganzhi} · 虚岁${c.age}`}
+                className="flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 transition-all hover:bg-white/5"
                 style={{
                   minWidth: '70px',
                   background: isActive ? 'rgba(167,139,250,0.18)' : 'transparent',
@@ -334,7 +336,8 @@ export default function TimeAxisGrid({
                 key={c.month}
                 data-active={isActive}
                 onClick={() => onSelectLiuyue(c.month)}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-3 py-1.5 transition-all"
+                title={`流月 ${c.name} (${ganzhi})`}
+                className="flex-shrink-0 flex flex-col items-center justify-center px-3 py-1.5 transition-all hover:bg-white/5"
                 style={{
                   minWidth: '70px',
                   background: isActive ? 'rgba(96,165,250,0.18)' : 'transparent',
@@ -358,7 +361,8 @@ export default function TimeAxisGrid({
                 key={c.day}
                 data-active={isActive}
                 onClick={() => onSelectLiuri(c.day)}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-1.5 py-1.5 transition-all"
+                title={`流日 ${c.label} (${c.stem}日)`}
+                className="flex-shrink-0 flex flex-col items-center justify-center px-1.5 py-1.5 transition-all hover:bg-white/5"
                 style={{
                   minWidth: '48px',
                   background: isActive ? 'rgba(34,211,238,0.18)' : 'transparent',
@@ -383,7 +387,8 @@ export default function TimeAxisGrid({
                 key={c.hour}
                 data-active={isActive}
                 onClick={() => onSelectLiushi(c.hour)}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 transition-all"
+                title={`流时 ${c.branch}时 (${c.stem}${c.branch}) · ${c.range}`}
+                className="flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 transition-all hover:bg-white/5"
                 style={{
                   minWidth: '64px',
                   background: isActive ? 'rgba(148,163,184,0.18)' : 'transparent',
