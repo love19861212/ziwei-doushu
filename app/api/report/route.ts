@@ -97,6 +97,15 @@ function buildReport(chart: any, isPro: boolean): string {
   if (chart.birthInfo?.city) sections.push(`**出生地**: ${chart.birthInfo.city}`);
   sections.push(`**真太阳时**: ${trueSolarHM}（${trueSolarBranchCN}时）${crossBranch ? '⚠️ 与钟表时跨时辰' : ''}`);
   sections.push(`**排盘口径**: 真太阳时 (倪海夏《天纪》+ 文墨天机体系)`);
+  // 2026-06-13 加: 报告封面 P2 字段 — 真太阳时 (参考) + 经度 (跟文墨天机报告对齐)
+  const tsHM = chart.birthInfo?.trueSolarHM;
+  if (tsHM) {
+    const [tsh, tsmin] = tsHM.split(':');
+    sections.push(`**真太阳时 (参考)**: ${tsh}时${tsmin}分`);
+  }
+  if (chart.birthInfo?.longitude !== undefined) {
+    sections.push(`**经度**: ${chart.birthInfo.longitude}°`);
+  }
   sections.push(`**命宫地支**: ${BRANCHES[chart.mingGongBranch] || '?'}`);
   sections.push(``);
 
