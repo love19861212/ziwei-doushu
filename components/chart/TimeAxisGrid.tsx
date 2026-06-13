@@ -239,9 +239,10 @@ export default function TimeAxisGrid({
   const liushiScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 2026-06-13: flex 容器里 offsetLeft 永远是 0, 必须用 getBoundingClientRect 算位置
-    // 用 rAF 等 layout 完成再算, scrollTo 用 'auto' 不用 smooth (smooth 在 flex+overflow 容器里 jank)
-    const raf = requestAnimationFrame(() => {
+    // 2026-06-13 v3: 移除 rAF (cleanup 会取消), 改为同步 setTimeout(0) 等 paint 完
+    // 根因复盘: 之前 rAF 在 useEffect cleanup 时被 cancelAnimationFrame 取消, 导致 scrollTo 从未触发
+    // 新方案: useEffect 同步拿 rect, setTimeout 0 让浏览器 paint 一帧再赋 scrollLeft
+    const timer = setTimeout(() => {
       const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
         daxian: daxianScrollRef, liunian: liunianScrollRef, liuyue: liuyueScrollRef,
         liuri: liuriScrollRef, liushi: liushiScrollRef,
@@ -251,14 +252,13 @@ export default function TimeAxisGrid({
       if (!el) return;
       const activeCell = el.querySelector('[data-active="true"]') as HTMLElement | null;
       if (!activeCell) return;
-      // 关键: cell 在 container 内的绝对位置 = cell.left - container.left + container.scrollLeft
       const cellRect = activeCell.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
       const cellLeftInContainer = cellRect.left - elRect.left + el.scrollLeft;
       const target = cellLeftInContainer - el.clientWidth / 2 + cellRect.width / 2;
-      el.scrollTo({ left: Math.max(0, target), behavior: 'auto' });
-    });
-    return () => cancelAnimationFrame(raf);
+      el.scrollLeft = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
+    }, 0);
+    return () => clearTimeout(timer);
   }, [view, selectedDaXianIndex, liunianYear, liuyueMonth, liuriDay, liushiHour]);
 
   return (
