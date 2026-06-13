@@ -8,6 +8,8 @@ import TimeNav, { type TimeView, getYearStemIndex, buildSiHuaOverlay } from './T
 
 interface ChartBoardProps {
   chart: ZiweiChart;
+  /** 外部指定大限索引 (DaXianPanel 点选后回传, 覆盖 chart.currentDaXianIndex) */
+  selectedDaXianIndex?: number | null;
   onStarSelect?: (star: Star, palace: Palace) => void;
   onPalaceSelect?: (palace: Palace) => void;
   onSiHuaClick?: (starName: string, siHua: string, view: TimeView) => void;
@@ -52,7 +54,7 @@ function getSanFangSiZheng(branch: number): [number, number, number, number] {
 
 const ANIMATION_ORDER = [5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4];
 
-export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHuaClick }: ChartBoardProps) {
+export default function ChartBoard({ chart, selectedDaXianIndex, onStarSelect, onPalaceSelect, onSiHuaClick }: ChartBoardProps) {
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [timeView, setTimeView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState<number>(new Date().getFullYear());
@@ -61,7 +63,9 @@ export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHu
   chart.palaces.forEach(p => { palaceMap[p.branch] = p; });
 
   // 计算当前叠加四化数据（大限或流年）
-  const currentDx = chart.daXians[chart.currentDaXianIndex];
+  // 2026-06-13: 接受外部 selectedDaXianIndex (点 DaXianPanel 切换), 默认用 chart.currentDaXianIndex
+  const activeDaXianIndex = selectedDaXianIndex ?? chart.currentDaXianIndex;
+  const currentDx = chart.daXians[activeDaXianIndex];
   const overlayData: Record<string, string> = (() => {
     if (timeView === 'daxian' && currentDx) {
       const dxPalace = chart.palaces.find(p => p.branch === currentDx.palaceBranch);
@@ -166,8 +170,8 @@ export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHu
             </div>
           </div>
 
-          {chart.currentDaXianIndex >= 0 && (() => {
-            const dx = chart.daXians[chart.currentDaXianIndex];
+          {activeDaXianIndex >= 0 && (() => {
+            const dx = chart.daXians[activeDaXianIndex];
             return (
               <div className="border border-purple-500/30 rounded-lg px-3 py-1.5 text-center"
                 style={{ background: 'rgba(147,51,234,0.06)' }}>

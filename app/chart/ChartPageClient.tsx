@@ -62,6 +62,8 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
   const [liuyueMonth, setLiuyueMonth] = useState(new Date().getMonth() + 1);
   const [liuriDay, setLiuriDay] = useState(new Date().getDate());
   const [liushiHour, setLiushiHour] = useState(0);
+  // 2026-06-13: DaXianPanel 点选后回传的大限索引 (null = 跟随 chart.currentDaXianIndex)
+  const [selectedDaXianIndex, setSelectedDaXianIndex] = useState<number | null>(null);
 
   // ── 聚焦状态（宫位/星曜/四化）────────────────────────────
   const [focus, setFocus] = useState<FocusState | null>(null);
@@ -346,14 +348,24 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
           {/* 主体：桌面双栏 / 手机上下堆叠 */}
           <div className="chart-workspace">
 
-            {/* 左栏：命盘主舞台 */}
+            {/* 左栏：命盘主舞台 + 下面的大限流年面板 (仿文墨天机) */}
             <div className="chart-workspace-left">
               <ChartBoard
                 chart={chart}
+                selectedDaXianIndex={selectedDaXianIndex}
                 onStarSelect={handleStarClick}
                 onPalaceSelect={handlePalaceClick}
                 onSiHuaClick={handleSiHuaBadgeClick}
               />
+
+              {/* 大限流年面板 — 2026-06-13 从右栏挪下来,接 onSelectDaXian 真切换 */}
+              <div style={{ marginTop: '20px' }}>
+                <DaXianPanel
+                  chart={chart}
+                  currentIndex={selectedDaXianIndex ?? chart.currentDaXianIndex ?? 0}
+                  onSelectDaXian={(idx) => setSelectedDaXianIndex(idx)}
+                />
+              </div>
 
               {/* 底部操作区 */}
               <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
@@ -393,7 +405,6 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
                 return famous ? <FamousPersonCard person={famous} /> : null;
               })()}
               <PatternsCard chart={chart} />
-              <DaXianPanel chart={chart} currentIndex={chart.currentDaXianIndex || 0} />
               <InsightPanel
                 chart={chart}
                 selectedPalace={focus?.palace}
