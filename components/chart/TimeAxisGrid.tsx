@@ -240,14 +240,16 @@ export default function TimeAxisGrid({
   const liushiScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 2026-06-13 v6 (FINAL): 用 data-row-key 定位正确 row, 跳过 display:none 的 mobile-only 副本
+    // 2026-06-13 v7: 跳过 layout 不可见的 row (clientWidth=0 必是父级 display:none)
+    // v6 误判: 桌面 5 行 row 本身 display:flex (没 CSS 隐藏 .mobile-hide), 父级 display:none, 误判 "可见"
     const timer = setTimeout(() => {
       const expectedKey = view === 'mingpan' ? 'daxian' : (view === 'daxian' ? 'daxian' : view);
       const labels = Array.from(document.querySelectorAll(`[data-row-key="${expectedKey}"]`));
       for (const label of labels) {
         const le = label as HTMLElement;
         const rowEl = le.closest('.flex.items-stretch') as HTMLElement | null;
-        if (!rowEl || getComputedStyle(rowEl).display === 'none') continue;
+        // 关键: clientWidth=0 表示 layout 不可见 (父级 display:none 实际宽度为 0)
+        if (!rowEl || rowEl.clientWidth === 0) continue;
         const row = le.parentElement as HTMLElement | null;
         if (!row) continue;
         const scroller = row.querySelector('.overflow-x-auto') as HTMLElement | null;
