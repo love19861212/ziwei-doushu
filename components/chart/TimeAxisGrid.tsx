@@ -248,7 +248,7 @@ export default function TimeAxisGrid({
       };
       const ref = refs[view === 'mingpan' ? 'daxian' : view];
       const el = ref?.current;
-      console.log('[time-axis] el=', !!el, 'view=', view);
+      console.log('[time-axis] el=', !!el, 'view=', view, 'class=', el?.className, 'computedDisplay=', el ? getComputedStyle(el).display : 'N/A', 'parentDisplay=', el?.parentElement ? getComputedStyle(el.parentElement).display : 'N/A', 'parentClass=', el?.parentElement?.className, 'grandparentDisplay=', el?.parentElement?.parentElement ? getComputedStyle(el.parentElement.parentElement).display : 'N/A');
       if (!el) return;
       const activeCell = el.querySelector('[data-active="true"]') as HTMLElement | null;
       console.log('[time-axis] activeCell=', activeCell?.textContent?.trim());
