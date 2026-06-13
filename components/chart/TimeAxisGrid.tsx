@@ -240,20 +240,26 @@ export default function TimeAxisGrid({
   const liushiScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 当前选中行 + 选中格子: 滚动到视野
-    const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
-      daxian: daxianScrollRef, liunian: liunianScrollRef, liuyue: liuyueScrollRef,
-      liuri: liuriScrollRef, liushi: liushiScrollRef,
-    };
-    const ref = refs[view === 'mingpan' ? 'daxian' : view];
-    const el = ref?.current;
-    if (el) {
+    // 2026-06-13: flex 容器里 offsetLeft 永远是 0, 必须用 getBoundingClientRect 算位置
+    // 用 rAF 等 layout 完成再算, scrollTo 用 'auto' 不用 smooth (smooth 在 flex+overflow 容器里 jank)
+    const raf = requestAnimationFrame(() => {
+      const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
+        daxian: daxianScrollRef, liunian: liunianScrollRef, liuyue: liuyueScrollRef,
+        liuri: liuriScrollRef, liushi: liushiScrollRef,
+      };
+      const ref = refs[view === 'mingpan' ? 'daxian' : view];
+      const el = ref?.current;
+      if (!el) return;
       const activeCell = el.querySelector('[data-active="true"]') as HTMLElement | null;
-      if (activeCell) {
-        const scrollLeft = activeCell.offsetLeft - el.clientWidth / 2 + activeCell.clientWidth / 2;
-        el.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
-      }
-    }
+      if (!activeCell) return;
+      // 关键: cell 在 container 内的绝对位置 = cell.left - container.left + container.scrollLeft
+      const cellRect = activeCell.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const cellLeftInContainer = cellRect.left - elRect.left + el.scrollLeft;
+      const target = cellLeftInContainer - el.clientWidth / 2 + cellRect.width / 2;
+      el.scrollTo({ left: Math.max(0, target), behavior: 'auto' });
+    });
+    return () => cancelAnimationFrame(raf);
   }, [view, selectedDaXianIndex, liunianYear, liuyueMonth, liuriDay, liushiHour]);
 
   return (
