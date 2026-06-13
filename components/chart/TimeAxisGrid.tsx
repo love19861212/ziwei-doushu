@@ -239,9 +239,8 @@ export default function TimeAxisGrid({
   const liushiScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 2026-06-13 v3: 移除 rAF (cleanup 会取消), 改为同步 setTimeout(0) 等 paint 完
-    // 根因复盘: 之前 rAF 在 useEffect cleanup 时被 cancelAnimationFrame 取消, 导致 scrollTo 从未触发
-    // 新方案: useEffect 同步拿 rect, setTimeout 0 让浏览器 paint 一帧再赋 scrollLeft
+    // 2026-06-13 v4: 加 console.log 看 effect 是否真跑 + 是否命中 ref
+    console.log('[time-axis] effect run, view=', view, 'liunianYear=', liunianYear);
     const timer = setTimeout(() => {
       const refs: Record<string, React.RefObject<HTMLDivElement | null>> = {
         daxian: daxianScrollRef, liunian: liunianScrollRef, liuyue: liuyueScrollRef,
@@ -249,15 +248,19 @@ export default function TimeAxisGrid({
       };
       const ref = refs[view === 'mingpan' ? 'daxian' : view];
       const el = ref?.current;
+      console.log('[time-axis] el=', !!el, 'view=', view);
       if (!el) return;
       const activeCell = el.querySelector('[data-active="true"]') as HTMLElement | null;
+      console.log('[time-axis] activeCell=', activeCell?.textContent?.trim());
       if (!activeCell) return;
       const cellRect = activeCell.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
       const cellLeftInContainer = cellRect.left - elRect.left + el.scrollLeft;
       const target = cellLeftInContainer - el.clientWidth / 2 + cellRect.width / 2;
-      el.scrollLeft = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
-    }, 0);
+      const final = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
+      console.log('[time-axis] set scrollLeft=', final, 'cell=', activeCell.textContent?.trim());
+      el.scrollLeft = final;
+    }, 50);
     return () => clearTimeout(timer);
   }, [view, selectedDaXianIndex, liunianYear, liuyueMonth, liuriDay, liushiHour]);
 
