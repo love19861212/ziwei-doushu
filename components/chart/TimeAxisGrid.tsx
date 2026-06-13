@@ -258,7 +258,8 @@ export default function TimeAxisGrid({
       const cellLeftInContainer = cellRect.left - elRect.left + el.scrollLeft;
       const target = cellLeftInContainer - el.clientWidth / 2 + cellRect.width / 2;
       const final = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth));
-      console.log('[time-axis] set scrollLeft=', final, 'cell=', activeCell.textContent?.trim());
+      console.log('[time-axis] cellRect.left=', cellRect.left, 'elRect.left=', elRect.left, 'el.scrollLeft=', el.scrollLeft, 'clientWidth=', el.clientWidth, 'cellW=', cellRect.width, 'scrollWidth=', el.scrollWidth);
+      console.log('[time-axis] cellLeftInContainer=', cellLeftInContainer, 'target=', target, 'final=', final, 'cell=', activeCell.textContent?.trim());
       el.scrollLeft = final;
     }, 50);
     return () => clearTimeout(timer);
