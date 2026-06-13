@@ -185,6 +185,7 @@ function GridRow({ rowKey, active, isMobileOnly, children, scrollRef }: RowProps
       {/* Label */}
       <div
         className="flex items-center justify-center flex-shrink-0"
+        data-row-key={rowKey}
         style={{
           width: '48px',
           fontSize: '10px',
@@ -239,25 +240,27 @@ export default function TimeAxisGrid({
   const liushiScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 2026-06-13 v5 (FINAL): 不用 useRef, 改用 document.querySelector
-    // root cause: 同一个 ref 在 desktop-show 和 desktop-hide 两处都 useRef={}
-    // React 保留最后一个 (desktop-hide), 它是 display:none, rect 全 0
-    // 新方案: 找 [data-active="true"] 然后 closest('.overflow-x-auto'), 自动定位 visible 那个
+    // 2026-06-13 v6 (FINAL): 用 data-row-key 定位正确 row, 跳过 display:none 的 mobile-only 副本
     const timer = setTimeout(() => {
-      const activeCell = document.querySelector('[data-active="true"]') as HTMLElement | null;
-      if (!activeCell) return;
-      const scroller = activeCell.closest('.overflow-x-auto') as HTMLElement | null;
-      if (!scroller) return;
-      // 只滚当前 view 对应的 row (按 rowKey 标签筛选, 避免命中其他 row)
-      const row = scroller.closest('.flex.items-stretch.gap-0') as HTMLElement | null;
-      const rowLabel = row?.querySelector(':scope > div')?.textContent?.trim();
-      const expectedLabel = view === 'mingpan' ? '大限' : (view === 'daxian' ? '大限' : ({ liunian: '流年', liuyue: '流月', liuri: '流日', liushi: '流时' } as Record<string, string>)[view]);
-      if (rowLabel !== expectedLabel) return;
-      const cellRect = activeCell.getBoundingClientRect();
-      const elRect = scroller.getBoundingClientRect();
-      const cellLeftInContainer = cellRect.left - elRect.left + scroller.scrollLeft;
-      const target = cellLeftInContainer - scroller.clientWidth / 2 + cellRect.width / 2;
-      scroller.scrollLeft = Math.max(0, Math.min(target, scroller.scrollWidth - scroller.clientWidth));
+      const expectedKey = view === 'mingpan' ? 'daxian' : (view === 'daxian' ? 'daxian' : view);
+      const labels = Array.from(document.querySelectorAll(`[data-row-key="${expectedKey}"]`));
+      for (const label of labels) {
+        const le = label as HTMLElement;
+        const rowEl = le.closest('.flex.items-stretch') as HTMLElement | null;
+        if (!rowEl || getComputedStyle(rowEl).display === 'none') continue;
+        const row = le.parentElement as HTMLElement | null;
+        if (!row) continue;
+        const scroller = row.querySelector('.overflow-x-auto') as HTMLElement | null;
+        if (!scroller) continue;
+        const activeCell = scroller.querySelector('[data-active="true"]') as HTMLElement | null;
+        if (!activeCell) continue;
+        const cellRect = activeCell.getBoundingClientRect();
+        const elRect = scroller.getBoundingClientRect();
+        const cellLeftInContainer = cellRect.left - elRect.left + scroller.scrollLeft;
+        const target = cellLeftInContainer - scroller.clientWidth / 2 + cellRect.width / 2;
+        scroller.scrollLeft = Math.max(0, Math.min(target, scroller.scrollWidth - scroller.clientWidth));
+        break;
+      }
     }, 50);
     return () => clearTimeout(timer);
   }, [view, selectedDaXianIndex, liunianYear, liuyueMonth, liuriDay, liushiHour]);
