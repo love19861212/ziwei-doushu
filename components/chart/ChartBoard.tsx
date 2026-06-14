@@ -128,7 +128,25 @@ export default function ChartBoard({
   };
 
   // 三方四正
-  const sanFangBranches = selectedBranch !== null ? getSanFangSiZheng(selectedBranch) : null;
+  // 2026-06-14 fix: 不仅点宫位画线, 大限/流年 切了也画 (官人反馈 "三方四正线没用")
+  // 优先级: 1) 宫位被点  2) 大限/流年 视图 (3 自动从对应命宫起)
+  // 流年命宫算法: 命宫起 (流年地支 - 命宫地支) 步, 阳男阴女顺, 阴男阳女逆
+  const activeFocusBranch: number | null = (() => {
+    if (selectedBranch !== null) return selectedBranch;
+    if (activeView === 'daxian' && currentDx) return currentDx.palaceBranch;
+    if (activeView === 'liunian') {
+      const birthYear = chart.birthInfo.year;
+      const ming = chart.mingGongBranch;
+      const birthBranch = (((birthYear - 4) % 12) + 12) % 12;
+      const isYangBirth = birthBranch % 2 === 0;
+      const isShun = (isYangBirth && chart.birthInfo.gender === 'male') ||
+                     (!isYangBirth && chart.birthInfo.gender === 'female');
+      const step = activeLiunianYear - birthYear;
+      return isShun ? (ming + step) % 12 : (ming - step + 120) % 12;
+    }
+    return null;
+  })();
+  const sanFangBranches = activeFocusBranch !== null ? getSanFangSiZheng(activeFocusBranch) : null;
   const sanFangSet = sanFangBranches ? new Set(sanFangBranches) : null;
 
   return (
@@ -225,7 +243,7 @@ export default function ChartBoard({
         <AnimatePresence>
           {sanFangBranches !== null && (
             <motion.div
-              key={`sf-${selectedBranch}`}
+              key={`sf-${activeFocusBranch}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
