@@ -276,11 +276,22 @@ export async function POST(req: NextRequest) {
         const reader = aiResponse.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        // 2026-06-14: 隐藏上游 model 的 <think>...</think> 推理内容 (官人反馈右栏露出)
+        // 用 state machine 跨 chunk 跟踪 think 状态
+        let inThink = false;
+        let thinkBuf = '';
 
         try {
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              // 流结束: 丢任何仍在 think 里的内容, 输出末尾
+              if (!inThink && thinkBuf) {
+                const eventData = JSON.stringify({ delta: { text: thinkBuf } });
+                controller.enqueue(encoder.encode(`data: ${eventData}\n`));
+              }
+              break;
+            }
 
             const chunk = decoder.decode(value, { stream: true });
             buffer += chunk;
@@ -298,8 +309,39 @@ export async function POST(req: NextRequest) {
               try {
                 const data = JSON.parse(dataStr);
                 const text = data.choices?.[0]?.delta?.content;
-                if (text) {
-                  const eventData = JSON.stringify({ delta: { text } });
+                if (!text) continue;
+                // State machine: 扫描 text 中的 <think> / </think>, 提取非 think 部分
+                thinkBuf += text;
+                let outputBuf = '';
+                let pos = 0;
+                while (pos < thinkBuf.length) {
+                  if (inThink) {
+                    const endIdx = thinkBuf.indexOf('</think>', pos);
+                    if (endIdx < 0) {
+                      // think 未结束, 等待下一 chunk
+                      thinkBuf = thinkBuf.slice(pos);
+                      pos = thinkBuf.length;
+                      break;
+                    }
+                    inThink = false;
+                    pos = endIdx + '</think>'.length;
+                  } else {
+                    const startIdx = thinkBuf.indexOf('<think>', pos);
+                    if (startIdx < 0) {
+                      outputBuf += thinkBuf.slice(pos);
+                      pos = thinkBuf.length;
+                    } else {
+                      outputBuf += thinkBuf.slice(pos, startIdx);
+                      inThink = true;
+                      pos = startIdx + '<think>'.length;
+                    }
+                  }
+                }
+                if (!inThink) {
+                  thinkBuf = '';
+                }
+                if (outputBuf) {
+                  const eventData = JSON.stringify({ delta: { text: outputBuf } });
                   controller.enqueue(encoder.encode(`data: ${eventData}\n`));
                 }
               } catch {}
