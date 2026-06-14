@@ -453,7 +453,9 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
               const isStreaming = loading && isLastAi;
               // 【Oracle 站同款】点宫位后, currentFocusAiIndex 对应的那条 AI 解读展开, 其他折叠
               const isCurrentFocus = currentFocusAiIndex === i;
-              const isExpanded = isStreaming || isCurrentFocus;
+              // 2026-06-14 官人反馈: 当前正在解读的, 解读完也不要默认折叠起来.
+              // 加 || isLastAi: 最后一条 ai msg 始终保持展开, 触发新解读时旧的自动失去 lastIdx 身份而折叠.
+              const isExpanded = isStreaming || isCurrentFocus || isLastAi;
               const isLong = msg.text.length > 150;
               // 从 user message 提取宫名 (e.g. '【父母宫】深度解读' → '父母宫')
               const focusLabel = isCurrentFocus
