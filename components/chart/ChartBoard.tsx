@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart, Palace, Star } from '@/lib/ziwei/types';
 import { BRANCHES, STEMS } from '@/lib/ziwei/constants';
 import PalaceCell from './PalaceCell';
-import TimeNav, { type TimeView, getYearStemIndex, getMonthStemIndex, getDayStemIndex, getHourStemIndex, buildSiHuaOverlay } from './TimeNav';
+import { type TimeView, getYearStemIndex, getMonthStemIndex, getDayStemIndex, getHourStemIndex, buildSiHuaOverlay } from './TimeNav';
 
 interface ChartBoardProps {
   chart: ZiweiChart;
@@ -133,14 +133,7 @@ export default function ChartBoard({
 
   return (
     <div className="w-full select-none">
-      {/* 时间导航轴 */}
-      <TimeNav
-        chart={chart}
-        view={timeView}
-        liunianYear={liunianYear}
-        onViewChange={setTimeView}
-        onYearChange={setLiunianYear}
-      />
+      {/* 2026-06-14: 删内部 TimeNav 重复 (TopBar 已有完整版 6 tab, 这里是冗余渲染) */}
 
       {/* 命盘标题 */}
       <motion.div

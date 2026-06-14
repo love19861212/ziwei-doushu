@@ -97,7 +97,7 @@ export default function TimeNav({
   const dayStemIndex = getDayStemIndex(currentDate);
   const hourStemIndex = getHourStemIndex(dayStemIndex, liushiHour);
 
-  // 当前叠加四化信息（用流年干，但显示流月/流日/流时干）
+  // 当前叠加四化信息（用流年/月/日/时干，2026-06-14 加流月/流日/流时分支）
   const getOverlayInfo = (): { stemName: string; overlay: Record<string, string>; level: string } | null => {
     if (view === 'mingpan') return null;
 
@@ -117,6 +117,31 @@ export default function TimeNav({
         stemName: STEMS[yearStemIndex],
         overlay: buildSiHuaOverlay(yearStemIndex),
         level: `${liunianYear}`,
+      };
+    }
+
+    // 2026-06-14: 流月/流日/流时 四化叠加 (5虎遁/日柱/5鼠遁)
+    if (view === 'liuyue') {
+      return {
+        stemName: STEMS[monthStemIndex],
+        overlay: buildSiHuaOverlay(monthStemIndex),
+        level: `${liuyueMonth}月`,
+      };
+    }
+
+    if (view === 'liuri') {
+      return {
+        stemName: STEMS[dayStemIndex],
+        overlay: buildSiHuaOverlay(dayStemIndex),
+        level: `${liuriDay}日`,
+      };
+    }
+
+    if (view === 'liushi') {
+      return {
+        stemName: STEMS[hourStemIndex],
+        overlay: buildSiHuaOverlay(hourStemIndex),
+        level: HOUR_BRANCHES[liushiHour] + '时',
       };
     }
 
