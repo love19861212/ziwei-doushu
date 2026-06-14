@@ -3,8 +3,13 @@
 // 用法: node scripts/test-true-solar.mjs
 // 退出码: 0=全过, 1=有失败
 
-import * as share from '../lib/ziwei/share.ts';
-const { calcTrueSolarBranch, calcTrueSolarHM, toDayOfYear } = share;
+// 2026-06-14 修复: tsx 跑 .mjs 解析 .ts 时, 把所有 named export 塞到 default 上
+// (CJS-style interop), 两种原 import 方式都拿不到:
+//   - namespace import: const { ... } = share            → share.calcTrueSolarBranch = undefined
+//   - named import:     import { calcTrueSolarBranch }    → 报错 "does not provide an export named"
+// 改用 default import 解构: const { calcTrueSolarBranch } = shareModule
+import shareModule from '../lib/ziwei/share.ts';
+const { calcTrueSolarBranch, calcTrueSolarHM, toDayOfYear } = shareModule;
 
 const SHICHEN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
