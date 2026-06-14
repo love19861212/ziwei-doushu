@@ -376,7 +376,7 @@ export default function FamousDetailPage() {
               <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212,168,67,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✦</div>
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: '#d4a843', letterSpacing: '0.15em' }}>AI 命盘解读</div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>MiniMax-M2.7 · 倪海厦紫微斗数体系</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>倪海厦紫微斗数体系</div>
               </div>
             </div>
             {interpreting && !interpretation ? (
