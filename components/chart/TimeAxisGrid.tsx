@@ -114,38 +114,7 @@ function buildLiuyueCells(liunianYear: number) {
   return cells;
 }
 
-// 流日格 (1~当月最大天数 + 日干)
-function buildLiuriCells(liunianYear: number, liuyueMonth: number) {
-  const daysInMonth = new Date(liunianYear, liuyueMonth, 0).getDate();
-  const cells = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(liunianYear, liuyueMonth - 1, d);
-    const dayStemIdx = getDayStemIndex(date);
-    cells.push({
-      day: d,
-      stem: STEMS[dayStemIdx],
-      label: d === 1 ? '初一' : d === 10 ? '初十' : d === 20 ? '二十' : d === 30 ? '三十' : `${d}日`,
-    });
-  }
-  return cells;
-}
-
-// 流时格 (12 时辰 + 五鼠遁时干)
-function buildLiushiCells(liunianYear: number, liuyueMonth: number, liuriDay: number) {
-  const date = new Date(liunianYear, liuyueMonth - 1, liuriDay);
-  const dayStemIdx = getDayStemIndex(date);
-  const cells = [];
-  for (let h = 0; h < 12; h++) {
-    const hourStemIdx = getHourStemIndex(dayStemIdx, h);
-    cells.push({
-      hour: h,
-      stem: STEMS[hourStemIdx],
-      branch: BRANCHES[h],
-      range: `${h === 0 ? 23 : h}:00–${(h + 1) % 24 === 0 ? 24 : (h + 1) % 24}:00`,
-    });
-  }
-  return cells;
-}
+// 流日格 / 流时格 build 函数已下线 (2026-06-14 官人定: 5 行 grid 只渲染 大限 + 流年 2 行)
 
 // SIHUA 颜色 (4 化小色块)
 const SIHUA_COLORS: Record<string, string> = {
@@ -218,32 +187,25 @@ export default function TimeAxisGrid({
 }: TimeAxisGridProps) {
   const daXianCells = buildDaXianCells(chart);
   const liunianCells = buildLiunianCells(chart.birthInfo.year, liunianYear);
-  const liuyueCells = buildLiuyueCells(liunianYear);
-  const liuriCells = buildLiuriCells(liunianYear, liuyueMonth);
-  const liushiCells = buildLiushiCells(liunianYear, liuyueMonth, liuriDay);
+  // liuyue/liuri/liushi build 已下线 (只渲染 大限 + 流年 2 行)
 
-  // 移动端: 只显示 TopBar 选中的那 1 行
-  const mobileRow: keyof typeof ROW_STYLE = (() => {
-    if (view === 'daxian') return 'daxian';
+  // 移动端: 只显示 TopBar 选中的那 1 行 (只支持 大限/流年 2 行, 2026-06-14 官人定)
+  const mobileRow: 'daxian' | 'liunian' = (() => {
     if (view === 'liunian') return 'liunian';
-    if (view === 'liuyue') return 'liuyue';
-    if (view === 'liuri') return 'liuri';
-    if (view === 'liushi') return 'liushi';
-    return 'daxian';  // 本命 默认显示大限
+    return 'daxian';  // 本命/大限/流月/流日/流时 全部 fallback 大限
   })();
 
   // 滚动到当前选中的格子
   const daxianScrollRef = useRef<HTMLDivElement>(null);
   const liunianScrollRef = useRef<HTMLDivElement>(null);
-  const liuyueScrollRef = useRef<HTMLDivElement>(null);
-  const liuriScrollRef = useRef<HTMLDivElement>(null);
-  const liushiScrollRef = useRef<HTMLDivElement>(null);
+  // liuyue/liuri/liushi scrollRef 已下线
 
   useEffect(() => {
     // 2026-06-13 v7: 跳过 layout 不可见的 row (clientWidth=0 必是父级 display:none)
     // v6 误判: 桌面 5 行 row 本身 display:flex (没 CSS 隐藏 .mobile-hide), 父级 display:none, 误判 "可见"
     const timer = setTimeout(() => {
-      const expectedKey = view === 'mingpan' ? 'daxian' : (view === 'daxian' ? 'daxian' : view);
+      // 2026-06-14 简化: 只滚 大限/流年 2 行
+      const expectedKey: 'daxian' | 'liunian' = (view === 'liunian') ? 'liunian' : 'daxian';
       const labels = Array.from(document.querySelectorAll(`[data-row-key="${expectedKey}"]`));
       for (const label of labels) {
         const le = label as HTMLElement;
@@ -327,82 +289,6 @@ export default function TimeAxisGrid({
           })}
         </GridRow>
 
-        <GridRow rowKey="liuyue" active={view === 'liuyue'} isMobileOnly={false} scrollRef={liuyueScrollRef}>
-          {liuyueCells.map((c) => {
-            const isActive = c.month === liuyueMonth;
-            const ganzhi = c.stem + c.branch;
-            return (
-              <button
-                key={c.month}
-                data-active={isActive}
-                onClick={() => onSelectLiuyue(c.month)}
-                title={`流月 ${c.name} (${ganzhi})`}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-3 py-1.5 transition-all hover:bg-white/5"
-                style={{
-                  minWidth: '70px',
-                  background: isActive ? 'rgba(96,165,250,0.18)' : 'transparent',
-                  borderRight: '1px solid var(--t-border)',
-                  cursor: 'pointer',
-                  color: 'var(--t-fg)',
-                }}
-              >
-                <div className="text-[11px] font-semibold">{c.name}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{ganzhi}</div>
-              </button>
-            );
-          })}
-        </GridRow>
-
-        <GridRow rowKey="liuri" active={view === 'liuri'} isMobileOnly={false} scrollRef={liuriScrollRef}>
-          {liuriCells.map((c) => {
-            const isActive = c.day === liuriDay;
-            return (
-              <button
-                key={c.day}
-                data-active={isActive}
-                onClick={() => onSelectLiuri(c.day)}
-                title={`流日 ${c.label} (${c.stem}日)`}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-1.5 py-1.5 transition-all hover:bg-white/5"
-                style={{
-                  minWidth: '48px',
-                  background: isActive ? 'rgba(34,211,238,0.18)' : 'transparent',
-                  borderRight: '1px solid var(--t-border)',
-                  cursor: 'pointer',
-                  color: 'var(--t-fg)',
-                }}
-              >
-                <div className="text-[10px] font-semibold">{c.label}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{c.stem}</div>
-              </button>
-            );
-          })}
-        </GridRow>
-
-        <GridRow rowKey="liushi" active={view === 'liushi'} isMobileOnly={false} scrollRef={liushiScrollRef}>
-          {liushiCells.map((c) => {
-            const isActive = c.hour === liushiHour;
-            const ganzhi = c.stem + c.branch;
-            return (
-              <button
-                key={c.hour}
-                data-active={isActive}
-                onClick={() => onSelectLiushi(c.hour)}
-                title={`流时 ${c.branch}时 (${c.stem}${c.branch}) · ${c.range}`}
-                className="flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 transition-all hover:bg-white/5"
-                style={{
-                  minWidth: '64px',
-                  background: isActive ? 'rgba(148,163,184,0.18)' : 'transparent',
-                  borderRight: '1px solid var(--t-border)',
-                  cursor: 'pointer',
-                  color: 'var(--t-fg)',
-                }}
-              >
-                <div className="text-[11px] font-semibold">{c.branch}时</div>
-                <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{c.stem}</div>
-              </button>
-            );
-          })}
-        </GridRow>
       </div>
 
       {/* 移动端: 只显示 TopBar 选中那 1 行 */}
@@ -434,51 +320,6 @@ export default function TimeAxisGrid({
                   <div className="text-[11px] font-semibold tabular-nums">{c.year}</div>
                   <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{c.stem}{c.branch}</div>
                   <div className="text-[8px]" style={{ color: 'var(--t-faint)' }}>{c.age}岁</div>
-                </button>
-              );
-            })}
-          </GridRow>
-        )}
-        {mobileRow === 'liuyue' && (
-          <GridRow rowKey="liuyue" active scrollRef={liuyueScrollRef} isMobileOnly={true}>
-            {liuyueCells.map((c) => {
-              const isActive = c.month === liuyueMonth;
-              return (
-                <button key={c.month} data-active={isActive} onClick={() => onSelectLiuyue(c.month)}
-                  className="flex-shrink-0 flex flex-col items-center justify-center px-3 py-1.5"
-                  style={{ minWidth: '70px', background: isActive ? 'rgba(96,165,250,0.18)' : 'transparent', borderRight: '1px solid var(--t-border)', color: 'var(--t-fg)' }}>
-                  <div className="text-[11px] font-semibold">{c.name}</div>
-                  <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{c.stem}{c.branch}</div>
-                </button>
-              );
-            })}
-          </GridRow>
-        )}
-        {mobileRow === 'liuri' && (
-          <GridRow rowKey="liuri" active scrollRef={liuriScrollRef} isMobileOnly={true}>
-            {liuriCells.map((c) => {
-              const isActive = c.day === liuriDay;
-              return (
-                <button key={c.day} data-active={isActive} onClick={() => onSelectLiuri(c.day)}
-                  className="flex-shrink-0 flex flex-col items-center justify-center px-1.5 py-1.5"
-                  style={{ minWidth: '48px', background: isActive ? 'rgba(34,211,238,0.18)' : 'transparent', borderRight: '1px solid var(--t-border)', color: 'var(--t-fg)' }}>
-                  <div className="text-[10px] font-semibold">{c.label}</div>
-                  <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{c.stem}</div>
-                </button>
-              );
-            })}
-          </GridRow>
-        )}
-        {mobileRow === 'liushi' && (
-          <GridRow rowKey="liushi" active scrollRef={liushiScrollRef} isMobileOnly={true}>
-            {liushiCells.map((c) => {
-              const isActive = c.hour === liushiHour;
-              return (
-                <button key={c.hour} data-active={isActive} onClick={() => onSelectLiushi(c.hour)}
-                  className="flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5"
-                  style={{ minWidth: '64px', background: isActive ? 'rgba(148,163,184,0.18)' : 'transparent', borderRight: '1px solid var(--t-border)', color: 'var(--t-fg)' }}>
-                  <div className="text-[11px] font-semibold">{c.branch}时</div>
-                  <div className="text-[10px] mt-0.5" style={{ color: STEM_COLORS[c.stem] }}>{c.stem}</div>
                 </button>
               );
             })}
