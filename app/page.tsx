@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import StarField from '@/components/StarField';
 import { useTheme } from '@/components/ThemeProvider';
-import AnnouncementModal from '@/components/AnnouncementModal';
+// import AnnouncementModal from '@/components/AnnouncementModal';  // 2026-06-14 官人决策: 取消作者公告弹窗 (5月1-8日 已过期)
 
 // Hook: theme colors
 function useColors(t: 'dark' | 'light') {
@@ -117,7 +117,7 @@ export default function HomePage() {
 
   return (
     <div style={{ background: c.bg, transition: 'background 0.35s ease' }} className="overflow-x-hidden">
-      <AnnouncementModal />
+      {/* <AnnouncementModal />  */}  // 2026-06-14 官人决策: 取消作者公告弹窗 (5月1-8日 已过期)
       <StarField />
 
       {/* 全局光晕 */}
