@@ -170,20 +170,39 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua, pro
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // 外部 promptSeed 变化时: 仿 Oracle 站 “点宫位 → 直接调真知识库”
+  // 2026-06-14 fix: 移除 !loading guard (5h session 之前 cell click 设新 promptSeed 时 loading=true 被跳过, 走 setInputText 路径不调 API)
+  // 新策略: loading 时暂存, loading 结束后自动用最新 promptSeed 调
+  const lastHandledSeed = useRef<string | null>(null);
   useEffect(() => {
-    if (promptSeed && !loading) {
-      // 检查是否是宫位点击 (特珠标记: [PALACE]宫名[/PALACE] 开头)
+    if (!promptSeed) return;
+    if (promptSeed === lastHandledSeed.current) return;
+    if (loading) {
+      // loading 中, 暂存, loading 结束后 (下一个 render) 会重跑
+      return;
+    }
+    lastHandledSeed.current = promptSeed;
+    const palaceMatch = promptSeed.match(/^\[PALACE\](.+?)\[\/PALACE\]/);
+    if (palaceMatch) {
+      fetchPalaceAnalysis(palaceMatch[1]);
+    } else {
+      sendToAI(promptSeed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promptSeed, loading]);
+
+  // loading 结束后, 检查是否有未处理的更新 promptSeed
+  useEffect(() => {
+    if (!loading && promptSeed && promptSeed !== lastHandledSeed.current) {
+      lastHandledSeed.current = promptSeed;
       const palaceMatch = promptSeed.match(/^\[PALACE\](.+?)\[\/PALACE\]/);
       if (palaceMatch) {
         fetchPalaceAnalysis(palaceMatch[1]);
       } else {
         sendToAI(promptSeed);
       }
-    } else if (promptSeed) {
-      setInputText(promptSeed);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promptSeed]);
+  }, [loading]);
 
   // 【Oracle 站同款】点宫位 → 调 /api/interpret 走 LLM streaming, 强约束 5 段结构
   const fetchPalaceAnalysis = async (palaceName: string) => {
