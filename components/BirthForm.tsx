@@ -476,7 +476,7 @@ day: !form.day ? '请选择日期'
                 lineHeight: 1.55
               }}
             >
-              ⚠ <strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>倪海夏《天纪》体系</strong>：本系统采用倪海夏《天纪》(文墨天机)体系,直接按<strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>钟表时辰</strong>排盘,不校准真太阳时。重庆/成都等地区按本地钟表时间填即可。
+              ⚠ <strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>排盘口径说明</strong>：本系统提供 2 种起盘模式（跟文墨天机设计一致） — <strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>农历+时辰输入</strong>时不校准真太阳时（钟表时辰）；<strong style={{ color: isDark ? '#f5c060' : '#7a4a10' }}>公历+24小时</strong>输入时会校准真太阳时（考虑出生地经度，Spencer 1971 秒级精度）。2 种起盘模式排出来的命盘可能会有差异，请根据实际需求选择。
             </motion.p>
           )}
         </AnimatePresence>
