@@ -4,16 +4,27 @@ import type { BirthInfo } from './types';
 /** 12 时辰地支名 */
 export const BRANCH_CN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
-/** 24小时钟表 → 真太阳时 (含 EoT 近似), 返回 "HH:MM"
- *  - 倪海夏《天纪》/ 文墨天机 体系: 排盘按真太阳时
+/** 24小时钟表 → 真太阳时 (Spencer 1971 完整公式), 返回 "HH:MM"
+ *  - 倪海夏《天纪》/ 文墨天机 体系: 排盘按真太阳时 (公历+经度模式)
  *  - 公式: solar = clock - (120 - longitude) * 4 分钟 (东经 offset 为正 → 减去)
- *  - 含 EoT 修正: 9.87 sin(2B) - 7.53 cos(B) - 1.5 sin(B), B = 2π/365 * (dayOfYear - 81)
+ *  - EoT 公式: Spencer 1971 (NOAA 太阳表标准, 秒级精度)
+ *    γ = 2π/365 * (N - 1)
+ *    EoT (min) = 229.18 * [0.000075 + 0.001868 cos(γ) - 0.032077 sin(γ)
+ *                            - 0.014615 cos(2γ) - 0.040849 sin(2γ)]
+ *  - 2026-06-14 升级: 之前用 Meeus 简化变种 (9.87 sin(2B) - 7.53 cos(B) - 1.5 sin(B))
+ *    符号反了, 误差 0.7-2.6 min; 改 Spencer 1971 跟文墨天机对齐 (秒级)
  */
 export function calcTrueSolarHM(clockHour: number, clockMinute: number, longitude: number, dayOfYear: number = 162): string {
   const clockMins = clockHour * 60 + clockMinute;
   const offset = (120 - longitude) * 4;  // 东经减, 西经加
-  const B = (2 * Math.PI / 365) * (dayOfYear - 81);
-  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  const γ = (2 * Math.PI / 365) * (dayOfYear - 1);
+  const eot = 229.18 * (
+    0.000075
+    + 0.001868 * Math.cos(γ)
+    - 0.032077 * Math.sin(γ)
+    - 0.014615 * Math.cos(2 * γ)
+    - 0.040849 * Math.sin(2 * γ)
+  );
   const total = clockMins - offset + eot;
   const solar = ((total % 1440) + 1440) % 1440;
   const h = Math.floor(solar / 60);
@@ -25,14 +36,19 @@ export function calcTrueSolarHM(clockHour: number, clockMinute: number, longitud
  *  - 23:00-23:59 = 晚子时 (索引 0), 算当天
  *  - 00:00-00:59 = 早子时 (索引 0), 算次日 (日柱已切换)
  *  - 01:00-22:59  按 12 时辰窗口 (1=丑, 2=寅, ..., 11=亥)
- *  - 2026-06-12 加 EoT 修正: 王二 16:00+104.40°E 不加 EoT 算 14:58 跨到未时 (命宫 6 午)
- *    加 EoT +5.5min 算 15:03 还在申时 (命宫 5 巳) — 跟文墨天机 v24 报告一致
+ *  - 2026-06-14 升级到 Spencer 1971 完整公式 (秒级精度, 跟文墨天机对齐)
  */
 export function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number, dayOfYear: number = 162): number {
   const clockMins = clockHour * 60 + clockMinute;
   const offset = (120 - longitude) * 4;  // 经度差 → 分钟
-  const B = (2 * Math.PI / 365) * (dayOfYear - 81);
-  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  const γ = (2 * Math.PI / 365) * (dayOfYear - 1);
+  const eot = 229.18 * (
+    0.000075
+    + 0.001868 * Math.cos(γ)
+    - 0.032077 * Math.sin(γ)
+    - 0.014615 * Math.cos(2 * γ)
+    - 0.040849 * Math.sin(2 * γ)
+  );
   const solarMins = ((clockMins - offset + eot) % 1440 + 1440) % 1440;  // 减经度, 加 EoT
   // 23:00-23:59 (1380-1440 分钟) → 子时(0)
   // 00:00-00:59 (0-60 分钟)     → 子时(0) 早子

@@ -3,7 +3,8 @@
 // 用法: node scripts/test-true-solar.mjs
 // 退出码: 0=全过, 1=有失败
 
-import { calcTrueSolarBranch, calcTrueSolarHM, toDayOfYear } from '../lib/ziwei/share.ts';
+import * as share from '../lib/ziwei/share.ts';
+const { calcTrueSolarBranch, calcTrueSolarHM, toDayOfYear } = share;
 
 const SHICHEN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
@@ -36,7 +37,7 @@ const cases = [
     clockHour: 0, clockMin: 30, longitude: 104.40,
     year: 1987, month: 1, day: 12,
     expectHour: 0, expectWuxingJu: '土五局', expectMingGong: 1,
-    expectTrueSolarHM: '23:19',  // 0:30 - 62.4 + (-8.23) = -40.63 → 23:19 (前一天)
+    expectTrueSolarHM: '23:20',  // 2026-06-14 升级到 Spencer 1971: 0:30 - 62.4 - 7.52 = -69.62 → 23:20 (前一天)
   },
   {
     label: '5️⃣ 晚子 1987-01-11 23:30 + 104.40°E (当天, 倪海夏派)',
