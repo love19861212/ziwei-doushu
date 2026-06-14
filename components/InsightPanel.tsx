@@ -146,6 +146,20 @@ const PALACE_ROLES: Record<string, string> = {
 
 /** Render AI markdown: **【Title】** → gold header, **bold** → strong */
 function AiContent({ text, streaming }: { text: string; streaming?: boolean }) {
+  // 2026-06-14 加载中提示: 流式还没产出内容时, 显示 "AI 正在解读命盘, 思考中"
+  if (streaming && !text) {
+    return (
+      <div className="flex items-center gap-2 text-[11px] py-1.5" style={{ color: 'var(--t-faint)' }}>
+        <span style={{ color: 'var(--t-gold)', opacity: 0.5 }}>✦</span>
+        <span>AI 正在解读命盘，思考中</span>
+        <span className="inline-flex gap-0.5" style={{ color: 'var(--t-gold)', opacity: 0.7 }}>
+          <span className="animate-bounce" style={{ animationDelay: '0ms' }}>·</span>
+          <span className="animate-bounce" style={{ animationDelay: '150ms' }}>·</span>
+          <span className="animate-bounce" style={{ animationDelay: '300ms' }}>·</span>
+        </span>
+      </div>
+    );
+  }
   const lines = text.split('\n');
   return (
     <div className="space-y-0.5">
@@ -276,6 +290,9 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
 
   const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[]) => {
     try {
+      // 2026-06-14: 立即加空消息, 让 loading UI 立即可见 (不等 fetch 首字节)
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
       const res = await fetch('/api/interpret', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,8 +304,6 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = '';
-
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -310,7 +325,14 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
         }
       }
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: '解读失败，请稍后重试。' }]);
+      // 2026-06-14: 替换最后空消息为错误提示, 不再 push 新消息 (避免叠加在 loading UI 之后)
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === 'assistant' && !last.content) {
+          return [...prev.slice(0, -1), { role: 'assistant', content: '解读失败，请稍后重试。' }];
+        }
+        return [...prev, { role: 'assistant', content: '解读失败，请稍后重试。' }];
+      });
     } finally {
       setLoading(false);
       loadingRef.current = false;
