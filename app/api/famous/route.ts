@@ -138,6 +138,9 @@ ${chartDesc}
         const reader = aiResponse.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        // 2026-06-14: 隐藏上游 model 的 <think>...</think> 推理内容 (跟 interpret/heming 对齐)
+        let inThink = false;
+        let thinkBuf = '';
 
         try {
           while (true) {
@@ -160,8 +163,36 @@ ${chartDesc}
               try {
                 const data = JSON.parse(dataStr);
                 const text = data.choices?.[0]?.delta?.content;
-                if (text) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: { text } })}\n`));
+                if (!text) continue;
+                // State machine: 扫描 text 中的 <think> / </think>, 提取非 think 部分
+                thinkBuf += text;
+                let outputBuf = '';
+                let pos = 0;
+                while (pos < thinkBuf.length) {
+                  if (inThink) {
+                    const endIdx = thinkBuf.indexOf('</think>', pos);
+                    if (endIdx < 0) {
+                      thinkBuf = thinkBuf.slice(pos);
+                      pos = thinkBuf.length;
+                      break;
+                    }
+                    inThink = false;
+                    pos = endIdx + '</think>'.length;
+                  } else {
+                    const startIdx = thinkBuf.indexOf('<think>', pos);
+                    if (startIdx < 0) {
+                      outputBuf += thinkBuf.slice(pos);
+                      pos = thinkBuf.length;
+                    } else {
+                      outputBuf += thinkBuf.slice(pos, startIdx);
+                      inThink = true;
+                      pos = startIdx + '<think>'.length;
+                    }
+                  }
+                }
+                if (!inThink) thinkBuf = '';
+                if (outputBuf) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: { text: outputBuf } })}\n`));
                 }
               } catch {}
             }

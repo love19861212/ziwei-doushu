@@ -290,13 +290,14 @@ export default function HemingPage() {
           )}
 
           {analyzing && !analysis && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '40px 0', color: 'var(--tx-3)', fontSize: '13px' }}>
-              <div style={{
-                width: '14px', height: '14px',
-                border: '2px solid var(--bdr-med)', borderTopColor: 'var(--ac)',
-                borderRadius: '50%', animation: 'spin 0.8s linear infinite',
-              }} />
-              正在对比双方命盘…
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '40px 0', color: 'var(--ac)', fontSize: '14px' }}>
+              <span style={{ opacity: 0.5 }}>✦</span>
+              <span>AI 正在解读合盘，思考中</span>
+              <span style={{ display: 'inline-flex', gap: '2px', opacity: 0.7 }}>
+                <span style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: '0ms' }}>·</span>
+                <span style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: '150ms' }}>·</span>
+                <span style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: '300ms' }}>·</span>
+              </span>
             </div>
           )}
 

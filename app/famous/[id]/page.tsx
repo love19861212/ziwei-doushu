@@ -159,8 +159,8 @@ export default function FamousDetailPage() {
           if (data === '[DONE]') break;
           try {
             const raw = JSON.parse(data).delta?.text ?? '';
-            // 过滤掉思考标签（reasoning content）
-            const delta = raw.replace(/<think>[\s\S]*?\\]/g, '').replace(/\u0000/g, '');
+            // 过滤掉思考标签（双保险: 后端已经过滤, 客户端再滤一次防漏网）
+            const delta = raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\u0000/g, '');
             text += delta;
             setInterpretation(text);
           } catch { /* skip */ }
@@ -379,7 +379,19 @@ export default function FamousDetailPage() {
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>MiniMax-M2.7 · 倪海厦紫微斗数体系</div>
               </div>
             </div>
-            <AiContent text={interpretation} streaming={interpreting} />
+            {interpreting && !interpretation ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#d4a843', fontSize: '14px', padding: '12px 0' }}>
+                <span style={{ opacity: 0.5 }}>✦</span>
+                <span>AI 正在解读名人命盘，思考中</span>
+                <span style={{ display: 'inline-flex', gap: '2px', opacity: 0.7 }}>
+                  <span style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: '0ms' }}>·</span>
+                  <span style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: '150ms' }}>·</span>
+                  <span style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: '300ms' }}>·</span>
+                </span>
+              </div>
+            ) : (
+              <AiContent text={interpretation} streaming={interpreting} />
+            )}
             {interpretError && (
               <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '8px', background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)', color: 'rgba(255,120,120,0.9)', fontSize: '13px' }}>
                 解读失败，请稍后重试
