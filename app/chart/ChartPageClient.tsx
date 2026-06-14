@@ -52,6 +52,72 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
   const [reportModalOpen, setReportModalOpen] = useState(false);
   // 同步点击星耀弹出的"深入提问AI"到InsightPanel
   const [aiPromptSeed, setAiPromptSeed] = useState<string | null>(null);
+
+  // 流年命宫 (复用 ChartBoard 的算法)
+  const liunianMingGong = (liunianYear: number) => {
+    const birthYear = chart?.birthInfo.year ?? 0;
+    const ming = chart?.mingGongBranch ?? 0;
+    const gender = chart?.birthInfo.gender ?? 'male';
+    if (!birthYear) return null;
+    const birthBranch = (((birthYear - 4) % 12) + 12) % 12;
+    const isYangBirth = birthBranch % 2 === 0;
+    const isShun = (isYangBirth && gender === 'male') || (!isYangBirth && gender === 'female');
+    const step = liunianYear - birthYear;
+    return isShun ? (ming + step + 120) % 12 : (ming - step + 120) % 12;
+  };
+
+  // 2026-06-14: 大限 cell 点击 → 同步选 + 触发 AI 解读 (走 InsightPanel sendToAI 分支)
+  const handleSelectDaXianCell = (idx: number) => {
+    setSelectedDaXianIndex(idx);
+    setView('daxian');
+    const dx = chart?.daXians[idx];
+    if (!dx) return;
+    const stemName = dx.stemName ?? '';
+    const prompt = `请以倪海夏《天纪》体系详细解读此【大限】: ${dx.startAge}-${dx.endAge}岁 走${dx.palaceName} (大限宫干${stemName})。
+
+要求按以下结构输出 (150-300 字, 重点突出, 不空话):
+
+**【大限走势】** (1-2 句)
+- 此大限走到 [${dx.palaceName}], 宫干 [${stemName}] 的核心象意, 走这个大限主什么吉凶主题
+
+**【大限四化】** (4 个 star 名, 一行)
+- [${stemName}] 化禄/化权/化科/化忌 分别落在哪 4 颗星, 简要说明
+
+**【三方四正连锁】** (1-2 句)
+- 本宫 + 对宫 + 2 三合宫 的星曜联动, 主哪几个领域起伏
+
+**【实际建议】** (1-2 句)
+- 这个大限应该重点抓什么、防什么`;
+    setAiPromptSeed(prompt);
+  };
+  const handleSelectLiunianCell = (year: number) => {
+    setLiunianYear(year);
+    setView('liunian');
+    const liuMing = liunianMingGong(year);
+    if (liuMing === null || !chart) return;
+    const BRANCHES = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+    const palace = chart.palaces.find(p => p.branch === liuMing);
+    const palaceName = palace?.name ?? BRANCHES[liuMing] + '宫';
+    const yearStem = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'][((year - 4) % 10 + 10) % 10];
+    const yearBranch = BRANCHES[((year - 4) % 12 + 12) % 12];
+    const age = year - chart.birthInfo.year + 1;
+    const prompt = `请以倪海夏《天纪》体系详细解读此【流年/小限】: ${year}年 ${yearStem}${yearBranch}年 虚岁${age} 流年命宫在${palaceName}。
+
+要求按以下结构输出 (150-300 字, 重点突出):
+
+**【流年走势】** (1-2 句)
+- [${yearStem}${yearBranch}] 年, 虚岁 [${age}] 走到 [${palaceName}], 整年主题
+
+**【流年四化】** (4 个 star 名, 一行)
+- [${yearStem}] 化禄/化权/化科/化忌 分别落在哪 4 颗星, 简要说明
+
+**【三方四正连锁】** (1-2 句)
+- 流年命宫 + 对宫 + 2 三合宫 联动, 主哪几个领域起伏
+
+**【实际建议】** (1-2 句)
+- 这一年应该重点抓什么、防什么`;
+    setAiPromptSeed(prompt);
+  };
   // 10 类排盘开关配置 (Oracle 站 ✦ 面板)
   const [schoolConfig, setSchoolConfig] = useState<SchoolConfig>(DEFAULT_SCHOOL_CONFIG);
   const [schoolOpen, setSchoolOpen] = useState(false);
@@ -373,8 +439,8 @@ export default function ChartPageClient({ initialSearch = '' }: { initialSearch?
                   liuyueMonth={liuyueMonth}
                   liuriDay={liuriDay}
                   liushiHour={liushiHour}
-                  onSelectDaXian={(idx) => { setSelectedDaXianIndex(idx); setView('daxian'); }}
-                  onSelectLiunian={(y) => { setLiunianYear(y); setView('liunian'); }}
+                  onSelectDaXian={handleSelectDaXianCell}
+                  onSelectLiunian={handleSelectLiunianCell}
                   onSelectLiuyue={(m) => { setLiuyueMonth(m); setView('liuyue'); }}
                   onSelectLiuri={(d) => { setLiuriDay(d); setView('liuri'); }}
                   onSelectLiushi={(h) => { setLiushiHour(h); setView('liushi'); }}
