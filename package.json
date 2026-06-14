@@ -8,7 +8,7 @@
     "start": "next start",
     "build:cf": "npx @cloudflare/next-on-pages",
     "preview:cf": "npx wrangler pages dev",
-    "test": "node scripts/test-true-solar.mjs",
+    "test": "tsx scripts/test-true-solar.mjs",
     "test:watch": "node scripts/test-true-solar.mjs --watch",
     "prebuild": "npm test"
   },
@@ -38,6 +38,7 @@
     "autoprefixer": "^10.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.19.0"
   }
 }
