@@ -2,7 +2,7 @@ export interface BirthInfo {
   year: number;      // Gregorian year
   month: number;     // Gregorian month (1-12)
   day: number;       // Gregorian day
-  hour: number;      // 时辰 branch index (0=子, 1=丑, ... 11=亥) — 由 calcTrueSolarBranch 算
+  hour: number;      // 时辰 branch index (0=子, 1=丑, ... 11=亥) — 由 share.ts.timeMode 分流 (12h=钟表, 24h=真太阳时)
   minute?: number;   // 原始钟表分钟 0-59 (报告/分享用)
   clockHour?: number; // 原始钟表小时 0-23 (报告/分享用)
   gender: 'male' | 'female';
@@ -10,7 +10,8 @@ export interface BirthInfo {
   province?: string;   // 出生省份
   city?: string;       // 出生城市
   longitude?: number;  // 出生地经度（用于真太阳时校正）
-  trueSolarHM?: string; // 真太阳时 钟表显示 (e.g. "17:32")
+  trueSolarHM?: string; // 真太阳时 钟表显示 (e.g. "17:32") — 12时辰模式为空
+  timeMode?: string;    // '12h' (钟表时辰, 用户已选) | '24h' (真太阳时, 含 EoT)
 }
 
 export interface LunarInfo {

@@ -112,11 +112,15 @@ _solarDay: initialData?._solarDay ?? '',
 
   const branch = useMemo(() => {
     if (form.unknownTime) return 0;
-    // 2026-06-11 改造: 跟文墨天机对齐, 排盘用真太阳时
-    // 注意: 12h 模式下 form.clockHour 存的是 12时辰 索引 (0-11), 不是 24h 钟表
+    // 2026-06-14 改造: 跟文墨天机设计对齐 — 录入方式决定排盘口径
+    //  - timeMode='12h' (选时辰地支) → 钟表时辰, 用户已选, 不算真太阳时
+    //  - timeMode='24h' (公历+小时) → 真太阳时, 含 EoT 修正
+    // 注意: 12h 模式下 form.clockHour 存的是 12时辰 索引 (0-11), 24h 模式存的是 0-23 钟表
     const { hour, minute } = normalizeClockHour(form);
     if (!hour && !minute) return 0;
-    return calcTrueSolarBranch(hour, minute, form.longitude);
+    return form.timeMode === '12h'
+      ? parseInt(form.clockHour) || 0  // 12时辰 = 用户已选
+      : calcTrueSolarBranch(hour, minute, form.longitude);  // 24h = 真太阳时
   }, [form.clockHour, form.clockMinute, form.timeMode, form.unknownTime, form.longitude]);
 
   // 钟表时 vs 真太阳时 是否跨时辰 (用文墨天机 popup 提示)
@@ -127,7 +131,8 @@ _solarDay: initialData?._solarDay ?? '',
     }
     return h24to12(parseInt(form.clockHour) || 0, parseInt(form.clockMinute) || 0);
   }, [form.clockHour, form.clockMinute, form.timeMode, form.unknownTime]);
-  const crossShiChen = !form.unknownTime && clockBranch !== -1 && clockBranch !== branch;
+  // 2026-06-14 改造: 12h 模式 = 钟表, 跟用户选一致, 不需要跨时辰警告
+  const crossShiChen = !form.unknownTime && form.timeMode === '24h' && clockBranch !== -1 && clockBranch !== branch;
 
   const offsetMin = Math.round((120 - form.longitude) * 4);  // 经度差 分钟 (绝对值, 用于显示)
   const shichenInfo = SHICHEN[branch];
@@ -240,7 +245,7 @@ day: !form.day ? '请选择日期'
     onFormSave?.({...form});
     onSubmit({
       year: finalY, month: finalM, day: finalD,
-      hour: branch,                       // 真太阳时时支 (iztro timeIndex 0-11)
+      hour: branch,                       // 12h=钟表时辰 / 24h=真太阳时 (iztro timeIndex 0-11)
       minute: clockMin,
       clockHour: clock24,                 // 24小时钟表 (子时=0 或 23, 其他正常)
       gender: form.gender,
@@ -248,7 +253,8 @@ day: !form.day ? '请选择日期'
       province: form.province || undefined,
       city: form.city || undefined,
       longitude: form.province ? form.longitude : undefined,
-      trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clock24, clockMin, form.longitude),
+      trueSolarHM: form.unknownTime || form.timeMode === '12h' ? '' : calcTrueSolarHM(clock24, clockMin, form.longitude),
+      timeMode: form.timeMode,
     });
   };
 

@@ -113,7 +113,7 @@ export default function ChartSummary({ chart }: ChartSummaryProps) {
           )}
           {chart.birthInfo.longitude !== undefined && (
             <span style={{ color: 'var(--t-gold)', opacity: 0.7 }}>
-              经度 {chart.birthInfo.longitude.toFixed(2)}°E · 倪海夏《天纪》真太阳时口径
+              经度 {chart.birthInfo.longitude.toFixed(2)}°E · 排盘口径: {chart.birthInfo.timeMode === '12h' ? '钟表时辰' : '真太阳时'} (跟文墨天机对齐)
             </span>
           )}
         </div>

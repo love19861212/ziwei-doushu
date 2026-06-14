@@ -17,11 +17,12 @@ const cases = [
     expectTrueSolarHM: '14:50',
   },
   {
-    label: '2️⃣ 赵太年 农历 1986-12-12 申时 (公历 1987-01-11, 12h mode)',
-    clockHour: 15, clockMin: 0, longitude: 104.40,  // 申时→15:00
+    label: '2️⃣ 赵太年 12h mode 申时 (跟文墨天机对齐 — 12h=钟表时辰, 不算真太阳时)',
+    mode: '12h',  // 2026-06-14 改造: 录入方式决定口径, 12h=钟表
+    clockHour: 8, clockMin: 0, longitude: 104.40,  // 12h mode: clockHour = 时辰索引 8 (申)
     year: 1987, month: 1, day: 11,
-    expectHour: 7, expectWuxingJu: '金四局', expectMingGong: 6,
-    expectTrueSolarHM: '13:50',
+    expectHour: 8, expectWuxingJu: '金四局', expectMingGong: 6,
+    expectTrueSolarHM: '',  // 12h 模式不算真太阳时
   },
   {
     label: '3️⃣ 新疆 1995-06-16 11:30 + 79.92°E (跨时辰)',
@@ -51,8 +52,13 @@ const errors = [];
 
 for (const c of cases) {
   const dayOfYear = toDayOfYear(c.year, c.month, c.day);
-  const hour = calcTrueSolarBranch(c.clockHour, c.clockMin, c.longitude, dayOfYear);
-  const trueSolar = calcTrueSolarHM(c.clockHour, c.clockMin, c.longitude, dayOfYear);
+  // 2026-06-14 改造: 跟 share.ts 一致, 12h mode=钟表, 24h mode=真太阳时
+  const hour = c.mode === '12h'
+    ? c.clockHour  // 12h mode: clockHour 已是时辰索引 (0-11)
+    : calcTrueSolarBranch(c.clockHour, c.clockMin, c.longitude, dayOfYear);
+  const trueSolar = c.mode === '12h'
+    ? ''  // 12h mode 不算真太阳时
+    : calcTrueSolarHM(c.clockHour, c.clockMin, c.longitude, dayOfYear);
 
   const okHour = hour === c.expectHour;
   const okSolar = trueSolar === c.expectTrueSolarHM;

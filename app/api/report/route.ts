@@ -96,7 +96,14 @@ function buildReport(chart: any, isPro: boolean): string {
   sections.push(`**性别**: ${chart.birthInfo?.gender === 'male' ? '男' : '女'}`);
   if (chart.birthInfo?.city) sections.push(`**出生地**: ${chart.birthInfo.city}`);
   sections.push(`**真太阳时**: ${trueSolarHM}（${trueSolarBranchCN}时）${crossBranch ? '⚠️ 与钟表时跨时辰' : ''}`);
-  sections.push(`**排盘口径**: 真太阳时 (倪海夏《天纪》+ 文墨天机体系)`);
+  // 2026-06-14 改造: 排盘口径按 timeMode 动态 (跟文墨天机设计对齐)
+  //  - timeMode='12h' → 钟表时辰 (12时辰输入, 用户已选)
+  //  - timeMode='24h' → 真太阳时 (公历+经度, 含 EoT 修正)
+  const inputMode = chart.birthInfo?.timeMode || '24h';
+  const kouJingDesc = inputMode === '12h'
+    ? '钟表时辰 (12时辰输入, 跟文墨天机设计对齐)'
+    : '真太阳时 (公历+经度, 含 EoT 修正, 跟文墨天机设计对齐)';
+  sections.push(`**排盘口径**: ${kouJingDesc}`);
   // 2026-06-13 加: 报告封面 P2 字段 — 真太阳时 (参考) + 经度 (跟文墨天机报告对齐)
   const tsHM = chart.birthInfo?.trueSolarHM;
   if (tsHM) {

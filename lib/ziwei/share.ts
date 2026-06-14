@@ -70,11 +70,15 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     d = next.getDate();
   }
 
-  // 排盘用真太阳时 (跟文墨天机对齐) — 2026-06-12 加 EoT
+  // 排盘口径 (跟文墨天机设计对齐 — 2026-06-14):
+  //  - timeMode='12h' (选时辰地支) → 钟表时辰, 用户已选, 不算真太阳时
+  //  - timeMode='24h' (公历+小时) → 真太阳时, 含 EoT 修正
   const dayOfYear = (y > 0 && m > 0 && d > 0) ? toDayOfYear(y, m, d) : 162;
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(clockHour, clockMin, form.longitude, dayOfYear);
+    : form.timeMode === '12h'
+      ? parseInt(form.clockHour) || 0  // 12时辰 = 用户已选时辰
+      : calcTrueSolarBranch(clockHour, clockMin, form.longitude, dayOfYear);
 
   return {
     year: y, month: m, day: d,
@@ -86,7 +90,10 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
-    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude, dayOfYear),
+    trueSolarHM: form.unknownTime || form.timeMode === '12h'
+      ? ''  // 12时辰模式不算真太阳时
+      : calcTrueSolarHM(clockHour, clockMin, form.longitude, dayOfYear),
+    timeMode: form.timeMode,
   };
 }
 
@@ -134,11 +141,13 @@ export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthI
     d = next.getDate();
   }
 
-  // 排盘用真太阳时 (跟文墨天机对齐) — 2026-06-12 加 EoT
+  // 排盘口径 (跟文墨天机设计对齐 — 2026-06-14): 12h=钟表, 24h=真太阳时
   const dayOfYear = (y > 0 && m > 0 && d > 0) ? toDayOfYear(y, m, d) : 162;
   const hour = form.unknownTime
     ? 0
-    : calcTrueSolarBranch(clockHour, clockMin, form.longitude, dayOfYear);
+    : form.timeMode === '12h'
+      ? parseInt(form.clockHour) || 0
+      : calcTrueSolarBranch(clockHour, clockMin, form.longitude, dayOfYear);
 
   return {
     year: y, month: m, day: d,
@@ -150,7 +159,10 @@ export async function formToBirthInfoAsync(form: BirthFormState): Promise<BirthI
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
-    trueSolarHM: form.unknownTime ? '' : calcTrueSolarHM(clockHour, clockMin, form.longitude, dayOfYear),
+    trueSolarHM: form.unknownTime || form.timeMode === '12h'
+      ? ''
+      : calcTrueSolarHM(clockHour, clockMin, form.longitude, dayOfYear),
+    timeMode: form.timeMode,
   };
 }
 
